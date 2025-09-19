@@ -1,4 +1,390 @@
-I'll create a comprehensive Markdown documentation for your Windows Settings Reset Toolkit. Let me generate this as a README file for your ReSet repository.
+# Windows Reset Toolkit 2.0 - Technical Reference
+
+> Professional PowerShell-based Windows administration and troubleshooting suite with Active Directory integration.
+
+## 🎯 Technical Overview
+
+**ReSet Toolkit 2.0** is an enterprise-grade PowerShell module collection designed for comprehensive Windows system reset, troubleshooting, and maintenance. The toolkit provides 75+ specialized functions across 29 modules, featuring Advanced Active Directory integration, comprehensive backup systems, and professional admin tools.
+
+## 🏗️ Architecture & Design
+
+### **Core Architecture**
+- **PowerShell 5.0+ Framework**: Modern PowerShell module architecture
+- **Modular Design**: 29 specialized script modules with focused functionality
+- **Enterprise Integration**: Active Directory domain management and host cleanup
+- **Professional Logging**: Comprehensive audit trails and operation tracking
+- **Advanced Backup System**: Multi-format backup with compression and verification
+
+### **Technical Stack**
+- **Language**: PowerShell 5.0+
+- **Platform**: Windows 10/11 (x64)
+- **Requirements**: Administrator privileges, .NET Framework 4.7.2+
+- **Architecture**: Module-based with central utility framework
+- **Integration**: AD, Group Policy, WMI, Registry, Services
+
+## 📊 Function Inventory
+
+### **Core Statistics**
+- **Total Functions**: 75+ specialized functions
+- **Reset Modules**: 27 Windows component reset modules  
+- **Utility Functions**: 26 infrastructure and support functions
+- **AD Functions**: 15 Active Directory management functions
+- **Backup Functions**: 6 comprehensive backup/restore functions
+- **Admin Tools**: 3 standalone diagnostic utilities
+
+## 📁 Enhanced Project Structure
+
+```
+ReSet2/
+├── 📜 Reset-Manager.ps1              # Main interactive CLI interface
+├── 📜 Install.ps1                    # Enhanced installation with multi-tool setup
+├── 📜 HealthCheck.ps1               # Standalone system health checker
+├── 📜 AD-Tools.ps1                  # Interactive AD troubleshooting toolkit
+├── 📜 SystemCleanup.ps1             # Advanced system cleanup utility
+├── 📜 README.md                     # User documentation
+├── 📜 ENHANCEMENT_SUMMARY.md        # Technical enhancement details
+├── 📁 scripts/                      # Core PowerShell modules
+│   ├── 📜 ReSetUtils.psm1          # Central utility module (26 functions)
+│   ├── 📜 reset-active-directory.ps1    # AD management (7 functions)
+│   ├── 📜 reset-ad-host-cleanup.ps1     # Host AD cleanup (9 functions)
+│   ├── 📜 reset-system-performance.ps1  # Performance optimization (8 functions)
+│   ├── 📜 reset-language-settings.ps1   # Language & regional settings
+│   ├── 📜 reset-datetime.ps1            # Time zone & date settings
+│   ├── 📜 reset-display.ps1             # Display configuration
+│   ├── 📜 reset-audio.ps1               # Audio device settings
+│   ├── 📜 reset-network.ps1             # Network adapter configuration
+│   ├── 📜 reset-windows-update.ps1      # Windows Update components
+│   ├── 📜 reset-uac.ps1                 # User Account Control
+│   ├── 📜 reset-privacy.ps1             # Privacy settings
+│   ├── 📜 reset-defender.ps1            # Windows Defender
+│   ├── 📜 reset-search.ps1              # Windows Search indexing
+│   ├── 📜 reset-startmenu.ps1           # Start Menu & Taskbar
+│   ├── 📜 reset-shell.ps1               # Windows Shell & Explorer
+│   ├── 📜 reset-file-associations.ps1   # File type associations
+│   ├── 📜 reset-fonts.ps1               # Font configuration
+│   ├── 📜 reset-power.ps1               # Power management
+│   ├── 📜 reset-performance.ps1         # Performance counters
+│   ├── 📜 reset-browser.ps1             # Browser settings
+│   ├── 📜 reset-store.ps1               # Microsoft Store
+│   ├── 📜 reset-input-devices.ps1       # Input device settings
+│   ├── 📜 reset-features.ps1            # Windows features
+│   ├── 📜 reset-environment.ps1         # Environment variables
+│   ├── 📜 reset-registry.ps1            # Registry operations
+│   ├── 📜 reset-services.ps1            # Windows services
+│   └── 📜 reset-advanced.ps1            # Advanced system operations
+├── 📁 logs/                         # Operation logs and audit trails
+├── 📁 backups/                      # Backup storage with manifests
+├── 📁 docs/                         # Technical documentation
+├── 📁 gui/                          # Future GUI components
+└── 📁 config/                       # Configuration management
+```
+
+## 🔧 Core Module: ReSetUtils.psm1
+
+### **Infrastructure Functions** (26 total)
+```powershell
+# Logging & Operations
+Write-ReSetLog                    # Comprehensive logging system
+Start-ReSetOperation             # Operation tracking and audit
+Complete-ReSetOperation          # Operation completion and status
+
+# Backup & Restore System
+New-ReSetBackup                  # Standard backup creation
+New-CompressedBackup             # Compressed backup with encryption placeholder
+Restore-ReSetBackup              # Comprehensive backup restoration
+Get-ReSetBackupList              # Backup inventory management
+Remove-ReSetBackup               # Automated cleanup with retention
+Test-ReSetBackup                 # Backup integrity verification
+Export-ReSetBackup               # Backup export to external locations
+
+# System Utilities
+Test-IsAdmin                     # Administrator privilege validation
+Assert-AdminRights              # Rights enforcement
+Test-WindowsVersion             # OS compatibility checking
+Confirm-ReSetOperation          # User confirmation prompts
+
+# Registry & Service Management
+Set-RegistryValue               # Safe registry modification
+Remove-RegistryValue            # Registry value removal
+Remove-RegistryKey              # Registry key operations
+Restart-WindowsService          # Service lifecycle management
+
+# User Interface
+Write-ReSetHeader               # Professional headers
+Write-ProgressStep              # Progress indication
+Show-ReSetMenu                  # Interactive menu system
+
+# Advanced Features
+Get-SystemHealth                # Comprehensive health monitoring
+Invoke-AdvancedCleanup          # Multi-target system cleanup
+Test-ActiveDirectoryConnectivity # AD connectivity testing
+Reset-ActiveDirectoryCache      # AD cache management
+Invoke-SystemReport             # HTML report generation
+```
+
+## 🌐 Active Directory Integration
+
+### **Domain Management** (reset-active-directory.ps1)
+```powershell
+Reset-DomainConnectivity        # Domain connection repair
+Reset-ADCredentials             # Credential cache management
+Reset-GroupPolicyCache          # GP cache clearing and refresh
+Reset-KerberosAuthentication    # Kerberos ticket management
+Reset-ADDNSSettings             # AD DNS configuration
+Reset-ADServices                # AD service orchestration
+Reset-ADClientCache             # Client-side cache cleanup
+```
+
+### **Host Computer Cleanup** (reset-ad-host-cleanup.ps1)
+```powershell
+Reset-ComputerAccount           # Computer account password reset
+Reset-DomainTrust               # Trust relationship repair
+Reset-HostADCache               # Host-specific cache cleanup
+Reset-ComputerCertificates      # Computer certificate management
+Reset-HostNetlogon             # Netlogon service reset
+Reset-HostDNSRegistration       # DNS registration repair
+Repair-DomainMembership         # Comprehensive domain repair
+Clean-OrphanedADObjects         # Orphaned object cleanup
+```
+
+## ⚡ Performance Optimization
+
+### **System Performance Module** (reset-system-performance.ps1)
+```powershell
+Reset-SystemPerformance        # Comprehensive performance optimization
+Reset-MemoryManagement         # Memory allocation optimization
+Reset-DiskOptimization          # Disk cache and file system tuning
+Reset-SystemServices            # Service optimization profiles
+Reset-SystemCache               # System-wide cache management
+Reset-VisualEffects             # Visual effects optimization
+Reset-PowerManagement           # Power plan optimization
+Set-SystemPerformanceProfile   # Performance profile application
+```
+
+### **Performance Profiles**
+- **Performance Profile**: Maximum speed optimization
+- **Balanced Profile**: Optimal performance/power balance  
+- **Power Saver Profile**: Energy efficiency focus
+
+## 🛠️ Standalone Admin Tools
+
+### **HealthCheck.ps1** - System Health Assessment
+- Real-time system file integrity checking
+- Registry health validation
+- Disk space and performance monitoring
+- Critical service status verification
+- Network connectivity testing
+- Memory usage analysis
+- HTML report generation
+
+### **AD-Tools.ps1** - Active Directory Troubleshooting
+- Interactive AD connectivity testing
+- Kerberos ticket management
+- Credential cache clearing
+- DNS cache management
+- Complete AD reset workflows
+
+### **SystemCleanup.ps1** - Advanced System Cleanup
+- Selective cleanup options
+- Temporary file management
+- Browser cache clearing
+- Event log cleanup
+- Prefetch optimization
+- Windows Update cache management
+
+## 💾 Enhanced Backup System
+
+### **Backup Capabilities**
+```powershell
+# Standard Operations
+New-ReSetBackup -BackupName "Settings" -RegistryPaths @("HKLM:\Software\...")
+
+# Compressed Backups
+New-CompressedBackup -BackupName "SystemConfig" -SourcePath "C:\Config"
+
+# Restore Operations
+Restore-ReSetBackup -BackupName "Settings" -Verify
+
+# Management Operations
+Get-ReSetBackupList | Where-Object {$_.Name -like "System*"}
+Remove-ReSetBackup -RetentionDays 30 -Force
+Test-ReSetBackup -BackupName "CriticalSettings"
+Export-ReSetBackup -BackupName "Settings" -ExportPath "D:\Archive" -Compress
+```
+
+### **Backup Features**
+- **Registry & File System**: Complete configuration backup
+- **Compression Support**: ZIP compression with optimal settings
+- **Integrity Verification**: Backup validation and testing
+- **Retention Management**: Automated cleanup policies
+- **Export Capabilities**: External archive creation
+- **Manifest System**: Detailed backup cataloging
+
+## 🔐 Security & Enterprise Features
+
+### **Security Model**
+- **Administrator Enforcement**: Mandatory elevation for all operations
+- **Backup-First Philosophy**: Automatic backup before changes
+- **Operation Auditing**: Comprehensive logging and tracking
+- **Confirmation Prompts**: User validation for destructive operations
+- **Rollback Capabilities**: Complete operation reversal
+
+### **Enterprise Integration**
+- **Active Directory Support**: Domain-joined system management
+- **Group Policy Integration**: GP cache management and refresh
+- **Service Management**: Enterprise service optimization
+- **Certificate Handling**: Computer certificate management
+- **DNS Integration**: Enterprise DNS registration and cleanup
+
+## 📋 Usage Patterns
+
+### **Interactive Usage**
+```powershell
+# Launch main interface
+.\Reset-Manager.ps1
+
+# Quick health check
+.\HealthCheck.ps1
+
+# AD troubleshooting
+.\AD-Tools.ps1
+
+# System maintenance
+.\SystemCleanup.ps1
+```
+
+### **Programmatic Usage**
+```powershell
+# Import module
+Import-Module .\scripts\ReSetUtils.psm1
+
+# System health assessment
+$health = Get-SystemHealth
+$report = Invoke-SystemReport
+
+# AD operations
+$adStatus = Test-ActiveDirectoryConnectivity
+if ($adStatus.Status -ne "Connected") {
+    Reset-ActiveDirectoryCache -ClearKerberosTickets -ClearCredentialCache
+}
+
+# Performance optimization
+Reset-SystemPerformance -Profile Performance -OptimizeMemory -OptimizeDisk
+```
+
+### **Automation & Scripting**
+```powershell
+# Batch operations
+$scripts = @("reset-network", "reset-dns", "reset-browser")
+foreach ($script in $scripts) {
+    & ".\scripts\$script.ps1" -Force -Silent
+}
+
+# Scheduled maintenance
+$backupResult = New-ReSetBackup -BackupName "DailyMaintenance"
+Reset-SystemCache -Force
+Invoke-AdvancedCleanup -IncludeTempFiles -IncludeBrowserCache
+```
+
+## 🔍 Logging & Monitoring
+
+### **Comprehensive Logging**
+- **Operation Tracking**: Start/completion timestamps
+- **Error Handling**: Detailed error capture and reporting
+- **Audit Trails**: Complete operation history
+- **Performance Metrics**: System health and performance data
+- **Security Events**: Privilege usage and sensitive operations
+
+### **Log Locations**
+```
+logs/
+├── reset-operations-YYYY-MM-DD.log    # Daily operation logs
+├── system-health-YYYY-MM-DD.log       # Health monitoring logs
+├── backup-operations-YYYY-MM-DD.log   # Backup system logs
+└── error-YYYY-MM-DD.log               # Error and exception logs
+```
+
+## 🚀 Installation & Deployment
+
+### **Enhanced Installation Process**
+```powershell
+# Standard installation
+.\Install.ps1
+
+# Advanced installation with dependencies
+.\Install.ps1 -InstallDependencies -CreateShortcuts
+
+# Enterprise deployment
+.\Install.ps1 -InstallPath "C:\Tools\ReSet" -AddToPath -Silent
+```
+
+### **Installation Features**
+- **Automatic dependency detection**: PowerShell module installation
+- **Desktop shortcut creation**: Multiple tool shortcuts
+- **PATH integration**: System-wide accessibility
+- **Validation testing**: Post-installation verification
+- **Uninstallation support**: Complete removal capabilities
+
+## 📈 Performance & Scalability
+
+### **Optimization Features**
+- **Modular Loading**: On-demand module importing
+- **Efficient Operations**: Minimal system impact
+- **Batch Processing**: Multiple operation handling
+- **Background Operations**: Non-blocking execution
+- **Resource Management**: Memory and CPU optimization
+
+### **Scalability Considerations**
+- **Enterprise Deployment**: Multi-system management
+- **Domain Integration**: Centralized AD management
+- **Automation Ready**: PowerShell DSC compatibility
+- **Monitoring Integration**: SCOM/monitoring tool support
+- **Reporting Capabilities**: Management dashboard data
+
+## 🔧 Configuration Management
+
+### **Advanced Configuration** ($Script:Config)
+```powershell
+@{
+    CompressionEnabled = $true      # Enable backup compression
+    EncryptionEnabled = $false      # Encryption placeholder
+    ADIntegration = $true          # Active Directory features
+    PerformanceMetrics = $true     # Detailed performance monitoring
+    MaxBackupAge = 30              # Backup retention (days)
+    LogLevel = "INFO"              # Logging verbosity
+    AutoCleanup = $true           # Automatic maintenance
+    ReportsPath = ".\reports"      # Report storage location
+    TempPath = ".\temp"           # Temporary file location
+}
+```
+
+### **Customization Options**
+- **Operation Profiles**: Performance, Balanced, Power Saver
+- **Backup Policies**: Retention, compression, location
+- **Logging Levels**: Verbose, Info, Warning, Error
+- **UI Preferences**: Colors, prompts, confirmation levels
+- **Integration Settings**: AD, Group Policy, monitoring
+
+## 🎯 Best Practices
+
+### **Usage Guidelines**
+1. **Always run as Administrator**: Required for system-level operations
+2. **Create backups first**: Use backup system before major changes
+3. **Test in development**: Validate operations in test environments
+4. **Monitor logs**: Review operation logs for issues
+5. **Follow change management**: Document and track changes
+
+### **Enterprise Deployment**
+1. **Pilot testing**: Test with limited user groups
+2. **Backup strategies**: Implement comprehensive backup policies
+3. **Monitoring integration**: Connect to enterprise monitoring
+4. **Documentation**: Maintain operation procedures
+5. **Training**: Educate administrators on toolkit usage
+
+---
+
+**ReSet Toolkit 2.0 - Professional Windows Administration Suite**  
+*Enterprise-grade system reset, Active Directory tools, and advanced backup capabilities*
 
 ```markdown name=README.md
 # Windows Settings Reset Toolkit (ReSet)

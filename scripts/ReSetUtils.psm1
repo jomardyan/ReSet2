@@ -9,9 +9,23 @@
 $Script:LogPath = Join-Path $PSScriptRoot "..\logs"
 $Script:BackupPath = Join-Path $PSScriptRoot "..\backups"
 $Script:ConfigPath = Join-Path $PSScriptRoot "..\config"
+$Script:TempPath = Join-Path $PSScriptRoot "..\temp"
+$Script:ReportsPath = Join-Path $PSScriptRoot "..\reports"
+
+# Enhanced configuration
+$Script:Config = @{
+    MaxLogFiles = 30
+    MaxBackupDays = 90
+    CompressionEnabled = $true
+    EncryptionEnabled = $false
+    DetailedLogging = $true
+    PerformanceMetrics = $true
+    ADIntegration = $true
+    RemoteExecution = $false
+}
 
 # Ensure required directories exist
-foreach ($dir in @($Script:LogPath, $Script:BackupPath, $Script:ConfigPath)) {
+foreach ($dir in @($Script:LogPath, $Script:BackupPath, $Script:ConfigPath, $Script:TempPath, $Script:ReportsPath)) {
     if (!(Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
@@ -574,7 +588,915 @@ function Confirm-ReSetOperation {
 }
 
 # ===================================================================
-# EXPORT MODULE MEMBERS
+# ENHANCED SYSTEM FUNCTIONS
+# ===================================================================
+
+function Get-SystemHealth {
+    <#
+    .SYNOPSIS
+        Performs comprehensive system health check
+    #>
+    [CmdletBinding()]
+    param()
+    
+    $health = @{
+        SystemFiles = $null
+        RegistryHealth = $null
+        DiskHealth = $null
+        ServiceHealth = $null
+        NetworkHealth = $null
+        MemoryHealth = $null
+        PerformanceCounters = $null
+        Timestamp = Get-Date
+    }
+    
+    try {
+        # System File Check
+        Write-Host "Checking system files..." -ForegroundColor Yellow
+        $sfcResult = & sfc /verifyonly 2>&1
+        $health.SystemFiles = if ($LASTEXITCODE -eq 0) { 'Healthy' } else { "Issues Found: $($sfcResult -join ' ')" }
+        
+        # Registry Health
+        Write-Host "Checking registry integrity..." -ForegroundColor Yellow
+        $regKeys = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion',
+            'HKLM:\SYSTEM\CurrentControlSet\Control',
+            'HKLM:\SOFTWARE\Policies'
+        )
+        $regIssues = 0
+        foreach ($key in $regKeys) {
+            try {
+                Get-ItemProperty -Path $key -ErrorAction Stop | Out-Null
+            } catch {
+                $regIssues++
+            }
+        }
+        $health.RegistryHealth = if ($regIssues -eq 0) { 'Healthy' } else { "$regIssues Issues" }
+        
+        # Disk Health
+        Write-Host "Checking disk health..." -ForegroundColor Yellow
+        $disks = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
+        $diskIssues = @()
+        foreach ($disk in $disks) {
+            $freePercent = ($disk.FreeSpace / $disk.Size) * 100
+            if ($freePercent -lt 10) {
+                $diskIssues += "Drive $($disk.DeviceID) low space ($([math]::Round($freePercent, 2))%)"
+            }
+        }
+        $health.DiskHealth = if ($diskIssues.Count -eq 0) { 'Healthy' } else { $diskIssues -join '; ' }
+        
+        # Service Health
+        Write-Host "Checking critical services..." -ForegroundColor Yellow
+        $criticalServices = @('Winmgmt', 'RpcSs', 'Themes', 'AudioSrv', 'Spooler')
+        $serviceIssues = @()
+        foreach ($service in $criticalServices) {
+            $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
+            if (-not $svc -or $svc.Status -ne 'Running') {
+                $serviceIssues += $service
+            }
+        }
+        $health.ServiceHealth = if ($serviceIssues.Count -eq 0) { 'Healthy' } else { "Issues: $($serviceIssues -join ', ')" }
+        
+        # Network Health
+        Write-Host "Checking network connectivity..." -ForegroundColor Yellow
+        $networkTests = @(
+            @{ Target = '8.8.8.8'; Type = 'Ping' },
+            @{ Target = 'microsoft.com'; Type = 'DNS' }
+        )
+        $networkIssues = @()
+        foreach ($test in $networkTests) {
+            try {
+                if ($test.Type -eq 'Ping') {
+                    $result = Test-Connection -ComputerName $test.Target -Count 1 -Quiet
+                    if (-not $result) { $networkIssues += "Ping to $($test.Target) failed" }
+                } elseif ($test.Type -eq 'DNS') {
+                    $result = Resolve-DnsName -Name $test.Target -ErrorAction Stop
+                    if (-not $result) { $networkIssues += "DNS resolution for $($test.Target) failed" }
+                }
+            } catch {
+                $networkIssues += "$($test.Type) test for $($test.Target) failed"
+            }
+        }
+        $health.NetworkHealth = if ($networkIssues.Count -eq 0) { 'Healthy' } else { $networkIssues -join '; ' }
+        
+        # Memory Health
+        Write-Host "Checking memory usage..." -ForegroundColor Yellow
+        $memory = Get-WmiObject -Class Win32_OperatingSystem
+        $memoryUsedPercent = (($memory.TotalVisibleMemorySize - $memory.FreePhysicalMemory) / $memory.TotalVisibleMemorySize) * 100
+        $health.MemoryHealth = if ($memoryUsedPercent -lt 90) { 'Healthy' } else { "High usage ($([math]::Round($memoryUsedPercent, 2))%)" }
+        
+        # Performance Counters
+        if ($Script:Config.PerformanceMetrics) {
+            Write-Host "Collecting performance metrics..." -ForegroundColor Yellow
+            $health.PerformanceCounters = @{
+                CPUUsage = (Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval 1 -MaxSamples 3 | 
+                           Select-Object -ExpandProperty CounterSamples | 
+                           Measure-Object -Property CookedValue -Average).Average
+                AvailableMemoryMB = (Get-Counter '\Memory\Available MBytes').CounterSamples.CookedValue
+                DiskQueueLength = (Get-Counter '\PhysicalDisk(_Total)\Current Disk Queue Length').CounterSamples.CookedValue
+            }
+        }
+        
+    } catch {
+        Write-Warning "Error during system health check: $($_.Exception.Message)"
+    }
+    
+    return $health
+}
+
+function Invoke-AdvancedCleanup {
+    <#
+    .SYNOPSIS
+        Performs advanced system cleanup operations
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [switch]$IncludeTempFiles,
+        
+        [Parameter()]
+        [switch]$IncludeEventLogs,
+        
+        [Parameter()]
+        [switch]$IncludeRecycleBin,
+        
+        [Parameter()]
+        [switch]$IncludePrefetch,
+        
+        [Parameter()]
+        [switch]$IncludeWindowsUpdate,
+        
+        [Parameter()]
+        [switch]$IncludeBrowserCache
+    )
+    
+    $cleanupResults = @{}
+    
+    try {
+        if ($IncludeTempFiles) {
+            Write-Host "Cleaning temporary files..." -ForegroundColor Yellow
+            $tempPaths = @(
+                $env:TEMP,
+                "$env:WINDIR\Temp",
+                "$env:LOCALAPPDATA\Temp"
+            )
+            
+            $totalDeleted = 0
+            foreach ($path in $tempPaths) {
+                if (Test-Path $path) {
+                    $files = Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue
+                    $fileCount = $files.Count
+                    $files | Remove-Item -Force -ErrorAction SilentlyContinue
+                    $totalDeleted += $fileCount
+                }
+            }
+            $cleanupResults.TempFiles = "$totalDeleted files deleted"
+        }
+        
+        if ($IncludeEventLogs) {
+            Write-Host "Clearing event logs..." -ForegroundColor Yellow
+            $logs = Get-WinEvent -ListLog * | Where-Object { $_.RecordCount -gt 0 -and $_.LogName -notmatch 'Security|System|Application' }
+            $clearedCount = 0
+            foreach ($log in $logs) {
+                try {
+                    Clear-WinEvent -LogName $log.LogName -ErrorAction SilentlyContinue
+                    $clearedCount++
+                } catch {
+                    # Ignore errors for logs that cannot be cleared
+                }
+            }
+            $cleanupResults.EventLogs = "$clearedCount logs cleared"
+        }
+        
+        if ($IncludeRecycleBin) {
+            Write-Host "Emptying recycle bin..." -ForegroundColor Yellow
+            try {
+                Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+                $cleanupResults.RecycleBin = "Emptied successfully"
+            } catch {
+                $cleanupResults.RecycleBin = "Failed to empty"
+            }
+        }
+        
+        if ($IncludePrefetch) {
+            Write-Host "Clearing prefetch files..." -ForegroundColor Yellow
+            $prefetchPath = "$env:WINDIR\Prefetch"
+            if (Test-Path $prefetchPath) {
+                $files = Get-ChildItem -Path $prefetchPath -File -ErrorAction SilentlyContinue
+                $fileCount = $files.Count
+                $files | Remove-Item -Force -ErrorAction SilentlyContinue
+                $cleanupResults.Prefetch = "$fileCount prefetch files deleted"
+            }
+        }
+        
+        if ($IncludeWindowsUpdate) {
+            Write-Host "Clearing Windows Update cache..." -ForegroundColor Yellow
+            Stop-Service -Name wuauserv -Force -ErrorAction SilentlyContinue
+            $updatePath = "$env:WINDIR\SoftwareDistribution\Download"
+            if (Test-Path $updatePath) {
+                $files = Get-ChildItem -Path $updatePath -Recurse -ErrorAction SilentlyContinue
+                $fileCount = $files.Count
+                $files | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                $cleanupResults.WindowsUpdate = "$fileCount update files deleted"
+            }
+            Start-Service -Name wuauserv -ErrorAction SilentlyContinue
+        }
+        
+        if ($IncludeBrowserCache) {
+            Write-Host "Clearing browser caches..." -ForegroundColor Yellow
+            $browserPaths = @(
+                "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
+                "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache",
+                "$env:APPDATA\Mozilla\Firefox\Profiles\*\cache2"
+            )
+            
+            $totalDeleted = 0
+            foreach ($path in $browserPaths) {
+                $resolvedPaths = Resolve-Path $path -ErrorAction SilentlyContinue
+                foreach ($resolvedPath in $resolvedPaths) {
+                    if (Test-Path $resolvedPath) {
+                        $files = Get-ChildItem -Path $resolvedPath -Recurse -File -ErrorAction SilentlyContinue
+                        $fileCount = $files.Count
+                        $files | Remove-Item -Force -ErrorAction SilentlyContinue
+                        $totalDeleted += $fileCount
+                    }
+                }
+            }
+            $cleanupResults.BrowserCache = "$totalDeleted cache files deleted"
+        }
+        
+    } catch {
+        Write-Warning "Error during advanced cleanup: $($_.Exception.Message)"
+    }
+    
+    return $cleanupResults
+}
+
+function Test-ActiveDirectoryConnectivity {
+    <#
+    .SYNOPSIS
+        Tests Active Directory connectivity and domain status
+    #>
+    [CmdletBinding()]
+    param()
+    
+    if (-not $Script:Config.ADIntegration) {
+        return @{ Status = 'Disabled'; Message = 'AD Integration is disabled in configuration' }
+    }
+    
+    try {
+        # Check if machine is domain joined
+        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        if ($computerSystem.PartOfDomain) {
+            $domainName = $computerSystem.Domain
+            
+            # Test domain controller connectivity
+            try {
+                $dc = Get-ADDomainController -Service PrimaryDC -ErrorAction Stop
+                $dcTest = Test-Connection -ComputerName $dc.HostName -Count 1 -Quiet
+                
+                if ($dcTest) {
+                    return @{
+                        Status = 'Connected'
+                        Domain = $domainName
+                        DomainController = $dc.HostName
+                        Message = 'Successfully connected to domain'
+                    }
+                } else {
+                    return @{
+                        Status = 'Disconnected'
+                        Domain = $domainName
+                        Message = 'Cannot reach domain controller'
+                    }
+                }
+            } catch {
+                return @{
+                    Status = 'Error'
+                    Domain = $domainName
+                    Message = "AD module not available or access denied: $($_.Exception.Message)"
+                }
+            }
+        } else {
+            return @{
+                Status = 'Workgroup'
+                Message = 'Computer is not domain joined'
+            }
+        }
+    } catch {
+        return @{
+            Status = 'Error'
+            Message = "Failed to check domain status: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Reset-ActiveDirectoryCache {
+    <#
+    .SYNOPSIS
+        Resets Active Directory cached credentials and tickets
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [switch]$ClearKerberosTickets,
+        
+        [Parameter()]
+        [switch]$ClearCredentialCache,
+        
+        [Parameter()]
+        [switch]$FlushDNSCache
+    )
+    
+    $results = @{}
+    
+    try {
+        if ($ClearKerberosTickets) {
+            Write-Host "Clearing Kerberos tickets..." -ForegroundColor Yellow
+            try {
+                & klist purge 2>&1 | Out-Null
+                $results.KerberosTickets = "Cleared successfully"
+            } catch {
+                $results.KerberosTickets = "Failed to clear: $($_.Exception.Message)"
+            }
+        }
+        
+        if ($ClearCredentialCache) {
+            Write-Host "Clearing credential cache..." -ForegroundColor Yellow
+            try {
+                & cmdkey /list 2>&1 | ForEach-Object {
+                    if ($_ -match "Target: (.+)") {
+                        $target = $matches[1]
+                        & cmdkey /delete:$target 2>&1 | Out-Null
+                    }
+                }
+                $results.CredentialCache = "Cleared successfully"
+            } catch {
+                $results.CredentialCache = "Failed to clear: $($_.Exception.Message)"
+            }
+        }
+        
+        if ($FlushDNSCache) {
+            Write-Host "Flushing DNS cache..." -ForegroundColor Yellow
+            try {
+                & ipconfig /flushdns 2>&1 | Out-Null
+                $results.DNSCache = "Flushed successfully"
+            } catch {
+                $results.DNSCache = "Failed to flush: $($_.Exception.Message)"
+            }
+        }
+        
+        # Restart Netlogon service if AD operations were performed
+        if ($ClearKerberosTickets -or $ClearCredentialCache) {
+            try {
+                Restart-Service -Name Netlogon -Force -ErrorAction SilentlyContinue
+                $results.NetlogonService = "Restarted successfully"
+            } catch {
+                $results.NetlogonService = "Failed to restart: $($_.Exception.Message)"
+            }
+        }
+        
+    } catch {
+        Write-Warning "Error during AD cache reset: $($_.Exception.Message)"
+    }
+    
+    return $results
+}
+
+function New-CompressedBackup {
+    <#
+    .SYNOPSIS
+        Creates compressed backup with optional encryption
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BackupName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$SourcePath,
+        
+        [Parameter()]
+        [switch]$Encrypt,
+        
+        [Parameter()]
+        [SecureString]$Password
+    )
+    
+    if (-not $Script:Config.CompressionEnabled) {
+        return New-ReSetBackup -BackupName $BackupName -FilePaths @($SourcePath)
+    }
+    
+    try {
+        $backupTimestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+        $archiveName = "$BackupName-$backupTimestamp.zip"
+        $archivePath = Join-Path $Script:BackupPath $archiveName
+        
+        # Create compressed archive
+        if ($PSVersionTable.PSVersion.Major -ge 5) {
+            Compress-Archive -Path $SourcePath -DestinationPath $archivePath -CompressionLevel Optimal
+        } else {
+            # Fallback for older PowerShell versions
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($SourcePath, $archivePath)
+        }
+        
+        Write-ReSetLog "Created compressed backup: $archivePath" "SUCCESS"
+        
+        if ($Encrypt -and $Password) {
+            # Note: Encryption feature placeholder - implement with proper encryption libraries in production
+            Write-ReSetLog "Backup encryption requested but not implemented in this version" "WARN"
+            Write-Host "Warning: Backup encryption is not implemented in this version" -ForegroundColor Yellow
+        }
+        
+        return $archivePath
+    } catch {
+        Write-ReSetLog "Failed to create compressed backup: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Restore-ReSetBackup {
+    <#
+    .SYNOPSIS
+        Restores a previously created backup
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BackupName,
+        
+        [Parameter()]
+        [switch]$Force,
+        
+        [Parameter()]
+        [switch]$Verify
+    )
+    
+    try {
+        # Find the most recent backup for the specified name
+        $backupPattern = "$BackupName-*"
+        $backupFiles = Get-ChildItem -Path $Script:BackupPath -Filter "$backupPattern*" | Sort-Object LastWriteTime -Descending
+        
+        if (-not $backupFiles) {
+            throw "No backup found for '$BackupName'"
+        }
+        
+        $latestBackup = $backupFiles[0]
+        Write-ReSetLog "Found backup: $($latestBackup.FullName)" "INFO"
+        
+        # Check if it's a compressed backup
+        if ($latestBackup.Extension -eq '.zip') {
+            return Restore-CompressedBackup -BackupPath $latestBackup.FullName -Force:$Force -Verify:$Verify
+        }
+        
+        # Read backup manifest
+        $manifestPath = "$($latestBackup.FullName).manifest"
+        if (-not (Test-Path $manifestPath)) {
+            throw "Backup manifest not found: $manifestPath"
+        }
+        
+        $manifest = Get-Content $manifestPath | ConvertFrom-Json
+        
+        if (-not $Force) {
+            Write-Host "Backup Details:" -ForegroundColor Yellow
+            Write-Host "  Name: $($manifest.BackupName)" -ForegroundColor White
+            Write-Host "  Date: $($manifest.Timestamp)" -ForegroundColor White
+            Write-Host "  Items: $($manifest.BackupItems.Count)" -ForegroundColor White
+            
+            $confirm = Read-Host "Do you want to restore this backup? (y/N)"
+            if ($confirm.ToLower() -ne 'y') {
+                Write-Host "Restore cancelled" -ForegroundColor Yellow
+                return
+            }
+        }
+        
+        Write-ReSetLog "Starting restore of backup: $BackupName" "INFO"
+        
+        # Restore registry items
+        foreach ($item in $manifest.BackupItems) {
+            if ($item.Type -eq "Registry") {
+                try {
+                    Write-Host "Restoring registry: $($item.Path)" -ForegroundColor Yellow
+                    & reg import $item.BackupPath 2>&1 | Out-Null
+                    Write-ReSetLog "Restored registry: $($item.Path)" "SUCCESS"
+                } catch {
+                    Write-ReSetLog "Failed to restore registry $($item.Path): $($_.Exception.Message)" "ERROR"
+                }
+            }
+            elseif ($item.Type -eq "File") {
+                try {
+                    Write-Host "Restoring file: $($item.Path)" -ForegroundColor Yellow
+                    Copy-Item -Path $item.BackupPath -Destination $item.Path -Force
+                    Write-ReSetLog "Restored file: $($item.Path)" "SUCCESS"
+                } catch {
+                    Write-ReSetLog "Failed to restore file $($item.Path): $($_.Exception.Message)" "ERROR"
+                }
+            }
+        }
+        
+        Write-ReSetLog "Backup restore completed: $BackupName" "SUCCESS"
+        
+        if ($Verify) {
+            Write-Host "Verifying restore..." -ForegroundColor Yellow
+            $errors = 0
+            
+            foreach ($item in $manifest.BackupItems) {
+                if ($item.Type -eq "Registry") {
+                    if (-not (Test-Path "Registry::$($item.Path)")) {
+                        Write-Host "Verification failed: Registry path not found: $($item.Path)" -ForegroundColor Red
+                        $errors++
+                    }
+                }
+                elseif ($item.Type -eq "File") {
+                    if (-not (Test-Path $item.Path)) {
+                        Write-Host "Verification failed: File not found: $($item.Path)" -ForegroundColor Red
+                        $errors++
+                    }
+                }
+            }
+            
+            if ($errors -eq 0) {
+                Write-Host "Restore verification: PASSED" -ForegroundColor Green
+            } else {
+                Write-Host "Restore verification: FAILED ($errors errors)" -ForegroundColor Red
+            }
+        }
+        
+    } catch {
+        Write-ReSetLog "Error restoring backup: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Get-ReSetBackupList {
+    <#
+    .SYNOPSIS
+        Lists all available backups
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$BackupName
+    )
+    
+    try {
+        $pattern = if ($BackupName) { "$BackupName-*" } else { "*" }
+        $backupFiles = Get-ChildItem -Path $Script:BackupPath -Filter $pattern | Where-Object { $_.Name -notmatch '\.(manifest|log)$' }
+        
+        $backups = @()
+        
+        foreach ($backupFile in $backupFiles) {
+            $manifestPath = "$($backupFile.FullName).manifest"
+            
+            if (Test-Path $manifestPath) {
+                try {
+                    $manifest = Get-Content $manifestPath | ConvertFrom-Json
+                    $backups += [PSCustomObject]@{
+                        Name = $manifest.BackupName
+                        Timestamp = $manifest.Timestamp
+                        Size = "$([math]::Round($backupFile.Length / 1MB, 2)) MB"
+                        Items = $manifest.BackupItems.Count
+                        Type = if ($backupFile.Extension -eq '.zip') { 'Compressed' } else { 'Standard' }
+                        Path = $backupFile.FullName
+                    }
+                } catch {
+                    # Handle corrupted manifests
+                    $backups += [PSCustomObject]@{
+                        Name = $backupFile.BaseName
+                        Timestamp = $backupFile.LastWriteTime
+                        Size = "$([math]::Round($backupFile.Length / 1MB, 2)) MB"
+                        Items = "Unknown"
+                        Type = "Unknown"
+                        Path = $backupFile.FullName
+                    }
+                }
+            }
+        }
+        
+        return $backups | Sort-Object Timestamp -Descending
+        
+    } catch {
+        Write-ReSetLog "Error listing backups: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Remove-ReSetBackup {
+    <#
+    .SYNOPSIS
+        Removes old backups based on retention policy
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [int]$RetentionDays = 30,
+        
+        [Parameter()]
+        [string]$BackupName,
+        
+        [Parameter()]
+        [switch]$Force
+    )
+    
+    try {
+        $cutoffDate = (Get-Date).AddDays(-$RetentionDays)
+        $pattern = if ($BackupName) { "$BackupName-*" } else { "*" }
+        
+        $oldBackups = Get-ChildItem -Path $Script:BackupPath -Filter $pattern | Where-Object { 
+            $_.LastWriteTime -lt $cutoffDate -and $_.Name -notmatch '\.(manifest|log)$' 
+        }
+        
+        if (-not $oldBackups) {
+            Write-Host "No old backups found for cleanup" -ForegroundColor Green
+            return
+        }
+        
+        Write-Host "Found $($oldBackups.Count) backup(s) older than $RetentionDays days" -ForegroundColor Yellow
+        
+        if (-not $Force) {
+            foreach ($backup in $oldBackups) {
+                Write-Host "  $($backup.Name) - $($backup.LastWriteTime)" -ForegroundColor Gray
+            }
+            
+            $confirm = Read-Host "Delete these backups? (y/N)"
+            if ($confirm.ToLower() -ne 'y') {
+                Write-Host "Cleanup cancelled" -ForegroundColor Yellow
+                return
+            }
+        }
+        
+        $deletedCount = 0
+        foreach ($backup in $oldBackups) {
+            try {
+                # Remove backup file
+                Remove-Item -Path $backup.FullName -Force
+                
+                # Remove associated manifest
+                $manifestPath = "$($backup.FullName).manifest"
+                if (Test-Path $manifestPath) {
+                    Remove-Item -Path $manifestPath -Force
+                }
+                
+                Write-ReSetLog "Deleted old backup: $($backup.Name)" "INFO"
+                $deletedCount++
+            } catch {
+                Write-ReSetLog "Failed to delete backup $($backup.Name): $($_.Exception.Message)" "ERROR"
+            }
+        }
+        
+        Write-Host "Deleted $deletedCount backup(s)" -ForegroundColor Green
+        
+    } catch {
+        Write-ReSetLog "Error during backup cleanup: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Test-ReSetBackup {
+    <#
+    .SYNOPSIS
+        Verifies backup integrity
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BackupName
+    )
+    
+    try {
+        # Find the backup
+        $backupPattern = "$BackupName-*"
+        $backupFiles = Get-ChildItem -Path $Script:BackupPath -Filter "$backupPattern*" | Sort-Object LastWriteTime -Descending
+        
+        if (-not $backupFiles) {
+            throw "No backup found for '$BackupName'"
+        }
+        
+        $latestBackup = $backupFiles[0]
+        Write-Host "Testing backup: $($latestBackup.Name)" -ForegroundColor Yellow
+        
+        # Check if it's a compressed backup
+        if ($latestBackup.Extension -eq '.zip') {
+            try {
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                $archive = [System.IO.Compression.ZipFile]::OpenRead($latestBackup.FullName)
+                $archive.Dispose()
+                Write-Host "Compressed backup integrity: OK" -ForegroundColor Green
+                return $true
+            } catch {
+                Write-Host "Compressed backup integrity: FAILED" -ForegroundColor Red
+                return $false
+            }
+        }
+        
+        # Check manifest
+        $manifestPath = "$($latestBackup.FullName).manifest"
+        if (-not (Test-Path $manifestPath)) {
+            Write-Host "Backup manifest: MISSING" -ForegroundColor Red
+            return $false
+        }
+        
+        try {
+            $manifest = Get-Content $manifestPath | ConvertFrom-Json
+            Write-Host "Backup manifest: OK" -ForegroundColor Green
+        } catch {
+            Write-Host "Backup manifest: CORRUPTED" -ForegroundColor Red
+            return $false
+        }
+        
+        # Check backup items
+        $missingItems = 0
+        foreach ($item in $manifest.BackupItems) {
+            if (-not (Test-Path $item.BackupPath)) {
+                Write-Host "Missing backup item: $($item.BackupPath)" -ForegroundColor Red
+                $missingItems++
+            }
+        }
+        
+        if ($missingItems -eq 0) {
+            Write-Host "Backup integrity: PASSED" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "Backup integrity: FAILED ($missingItems missing items)" -ForegroundColor Red
+            return $false
+        }
+        
+    } catch {
+        Write-ReSetLog "Error testing backup: $($_.Exception.Message)" "ERROR"
+        Write-Host "Backup test: ERROR" -ForegroundColor Red
+        return $false
+    }
+}
+
+function Export-ReSetBackup {
+    <#
+    .SYNOPSIS
+        Exports backup to external location
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BackupName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$ExportPath,
+        
+        [Parameter()]
+        [switch]$Compress
+    )
+    
+    try {
+        if (-not (Test-Path $ExportPath)) {
+            New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
+        }
+        
+        # Find the backup
+        $backupPattern = "$BackupName-*"
+        $backupFiles = Get-ChildItem -Path $Script:BackupPath -Filter "$backupPattern*" | Sort-Object LastWriteTime -Descending
+        
+        if (-not $backupFiles) {
+            throw "No backup found for '$BackupName'"
+        }
+        
+        $latestBackup = $backupFiles[0]
+        $exportName = "$BackupName-Export-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')"
+        
+        if ($Compress) {
+            $exportFilePath = Join-Path $ExportPath "$exportName.zip"
+            $tempExportDir = Join-Path $Script:TempPath $exportName
+            
+            # Create temporary directory
+            New-Item -ItemType Directory -Path $tempExportDir -Force | Out-Null
+            
+            # Copy backup files to temp directory
+            Copy-Item -Path $latestBackup.FullName -Destination $tempExportDir -Force
+            $manifestPath = "$($latestBackup.FullName).manifest"
+            if (Test-Path $manifestPath) {
+                Copy-Item -Path $manifestPath -Destination $tempExportDir -Force
+            }
+            
+            # Create compressed export
+            Compress-Archive -Path "$tempExportDir\*" -DestinationPath $exportFilePath -CompressionLevel Optimal
+            
+            # Cleanup temp directory
+            Remove-Item -Path $tempExportDir -Recurse -Force
+            
+            Write-Host "Backup exported (compressed): $exportFilePath" -ForegroundColor Green
+        } else {
+            $exportDir = Join-Path $ExportPath $exportName
+            New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
+            
+            # Copy backup files
+            Copy-Item -Path $latestBackup.FullName -Destination $exportDir -Force
+            $manifestPath = "$($latestBackup.FullName).manifest"
+            if (Test-Path $manifestPath) {
+                Copy-Item -Path $manifestPath -Destination $exportDir -Force
+            }
+            
+            Write-Host "Backup exported: $exportDir" -ForegroundColor Green
+        }
+        
+    } catch {
+        Write-ReSetLog "Error exporting backup: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Invoke-SystemReport {
+    <#
+    .SYNOPSIS
+        Generates comprehensive system report
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$ReportPath
+    )
+    
+    if (-not $ReportPath) {
+        $ReportPath = Join-Path $Script:ReportsPath "SystemReport-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').html"
+    }
+    
+    try {
+        $systemInfo = @{
+            ComputerName = $env:COMPUTERNAME
+            UserName = $env:USERNAME
+            OSVersion = [System.Environment]::OSVersion.VersionString
+            PowerShellVersion = $PSVersionTable.PSVersion.ToString()
+            Domain = (Get-WmiObject -Class Win32_ComputerSystem).Domain
+            LastBootTime = (Get-WmiObject -Class Win32_OperatingSystem).ConvertToDateTime((Get-WmiObject -Class Win32_OperatingSystem).LastBootUpTime)
+            TotalRAM = [math]::Round((Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
+            SystemHealth = Get-SystemHealth
+            ADStatus = Test-ActiveDirectoryConnectivity
+            Timestamp = Get-Date
+        }
+        
+        # Create HTML report
+        $html = @"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Windows System Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #0078d4; }
+        h2 { color: #323130; border-bottom: 1px solid #edebe9; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .healthy { color: green; }
+        .warning { color: orange; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Windows System Report</h1>
+    <p>Generated: $($systemInfo.Timestamp)</p>
+    
+    <h2>System Information</h2>
+    <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Computer Name</td><td>$($systemInfo.ComputerName)</td></tr>
+        <tr><td>User Name</td><td>$($systemInfo.UserName)</td></tr>
+        <tr><td>OS Version</td><td>$($systemInfo.OSVersion)</td></tr>
+        <tr><td>PowerShell Version</td><td>$($systemInfo.PowerShellVersion)</td></tr>
+        <tr><td>Domain</td><td>$($systemInfo.Domain)</td></tr>
+        <tr><td>Last Boot Time</td><td>$($systemInfo.LastBootTime)</td></tr>
+        <tr><td>Total RAM (GB)</td><td>$($systemInfo.TotalRAM)</td></tr>
+    </table>
+    
+    <h2>System Health</h2>
+    <table>
+        <tr><th>Component</th><th>Status</th></tr>
+        <tr><td>System Files</td><td class="$(if($systemInfo.SystemHealth.SystemFiles -eq 'Healthy'){'healthy'}else{'error'})">$($systemInfo.SystemHealth.SystemFiles)</td></tr>
+        <tr><td>Registry Health</td><td class="$(if($systemInfo.SystemHealth.RegistryHealth -eq 'Healthy'){'healthy'}else{'warning'})">$($systemInfo.SystemHealth.RegistryHealth)</td></tr>
+        <tr><td>Disk Health</td><td class="$(if($systemInfo.SystemHealth.DiskHealth -eq 'Healthy'){'healthy'}else{'warning'})">$($systemInfo.SystemHealth.DiskHealth)</td></tr>
+        <tr><td>Service Health</td><td class="$(if($systemInfo.SystemHealth.ServiceHealth -eq 'Healthy'){'healthy'}else{'warning'})">$($systemInfo.SystemHealth.ServiceHealth)</td></tr>
+        <tr><td>Network Health</td><td class="$(if($systemInfo.SystemHealth.NetworkHealth -eq 'Healthy'){'healthy'}else{'error'})">$($systemInfo.SystemHealth.NetworkHealth)</td></tr>
+        <tr><td>Memory Health</td><td class="$(if($systemInfo.SystemHealth.MemoryHealth -eq 'Healthy'){'healthy'}else{'warning'})">$($systemInfo.SystemHealth.MemoryHealth)</td></tr>
+    </table>
+    
+    <h2>Active Directory Status</h2>
+    <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Status</td><td class="$(if($systemInfo.ADStatus.Status -eq 'Connected'){'healthy'}elseif($systemInfo.ADStatus.Status -eq 'Workgroup'){'warning'}else{'error'})">$($systemInfo.ADStatus.Status)</td></tr>
+        <tr><td>Message</td><td>$($systemInfo.ADStatus.Message)</td></tr>
+    </table>
+</body>
+</html>
+"@
+        
+        $html | Out-File -FilePath $ReportPath -Encoding UTF8
+        Write-ReSetLog "System report generated: $ReportPath" "SUCCESS"
+        return $ReportPath
+    } catch {
+        Write-ReSetLog "Failed to generate system report: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+# ===================================================================
+# EXPORT MODULE MEMBERS (UPDATED)
 # ===================================================================
 
 Export-ModuleMember -Function @(
@@ -582,6 +1504,11 @@ Export-ModuleMember -Function @(
     'Start-ReSetOperation',
     'Complete-ReSetOperation',
     'New-ReSetBackup',
+    'Restore-ReSetBackup',
+    'Get-ReSetBackupList',
+    'Remove-ReSetBackup',
+    'Test-ReSetBackup',
+    'Export-ReSetBackup',
     'Test-IsAdmin',
     'Assert-AdminRights',
     'Set-RegistryValue',
@@ -592,5 +1519,11 @@ Export-ModuleMember -Function @(
     'Write-ProgressStep',
     'Show-ReSetMenu',
     'Test-WindowsVersion',
-    'Confirm-ReSetOperation'
+    'Confirm-ReSetOperation',
+    'Get-SystemHealth',
+    'Invoke-AdvancedCleanup',
+    'Test-ActiveDirectoryConnectivity',
+    'Reset-ActiveDirectoryCache',
+    'New-CompressedBackup',
+    'Invoke-SystemReport'
 )

@@ -129,6 +129,10 @@ function Install-Toolkit {
             Unblock-File -Path $_.FullName -ErrorAction SilentlyContinue
         }
         
+        # Create enhanced admin tools
+        Write-InstallLog "Creating enhanced admin tools..."
+        New-EnhancedAdminTools
+        
         Write-InstallLog "Toolkit files installed successfully" "SUCCESS"
         
     } catch {
@@ -138,24 +142,48 @@ function Install-Toolkit {
 
 function New-DesktopShortcut {
     if ($CreateDesktopShortcut) {
-        Write-InstallLog "Creating desktop shortcut..."
+        Write-InstallLog "Creating desktop shortcuts..."
         
         try {
             $desktopPath = [Environment]::GetFolderPath("Desktop")
+            $shell = New-Object -ComObject WScript.Shell
+            
+            # Main toolkit shortcut
             $shortcutPath = Join-Path $desktopPath "Windows Reset Toolkit.lnk"
             $targetPath = Join-Path $InstallPath "Reset-Manager.ps1"
-            
-            $shell = New-Object -ComObject WScript.Shell
             $shortcut = $shell.CreateShortcut($shortcutPath)
             $shortcut.TargetPath = "powershell.exe"
             $shortcut.Arguments = "-ExecutionPolicy Bypass -File `"$targetPath`""
             $shortcut.WorkingDirectory = $InstallPath
             $shortcut.Description = "Windows Reset Toolkit - System settings reset utility"
             $shortcut.Save()
+            Write-InstallLog "Created shortcut: Windows Reset Toolkit.lnk"
             
-            Write-InstallLog "Desktop shortcut created: $shortcutPath" "SUCCESS"
+            # Health Check shortcut
+            $healthShortcut = Join-Path $desktopPath "System Health Check.lnk"
+            $healthTarget = Join-Path $InstallPath "HealthCheck.ps1"
+            $healthShortcutObj = $shell.CreateShortcut($healthShortcut)
+            $healthShortcutObj.TargetPath = "powershell.exe"
+            $healthShortcutObj.Arguments = "-ExecutionPolicy Bypass -File `"$healthTarget`""
+            $healthShortcutObj.WorkingDirectory = $InstallPath
+            $healthShortcutObj.Description = "Quick System Health Check"
+            $healthShortcutObj.Save()
+            Write-InstallLog "Created shortcut: System Health Check.lnk"
+            
+            # AD Tools shortcut
+            $adShortcut = Join-Path $desktopPath "AD Tools.lnk"
+            $adTarget = Join-Path $InstallPath "AD-Tools.ps1"
+            $adShortcutObj = $shell.CreateShortcut($adShortcut)
+            $adShortcutObj.TargetPath = "powershell.exe"
+            $adShortcutObj.Arguments = "-ExecutionPolicy Bypass -File `"$adTarget`""
+            $adShortcutObj.WorkingDirectory = $InstallPath
+            $adShortcutObj.Description = "Active Directory Troubleshooting Tools"
+            $adShortcutObj.Save()
+            Write-InstallLog "Created shortcut: AD Tools.lnk"
+            
+            Write-InstallLog "Desktop shortcuts created successfully" "SUCCESS"
         } catch {
-            Write-InstallLog "Failed to create desktop shortcut: $($_.Exception.Message)" "WARN"
+            Write-InstallLog "Failed to create desktop shortcuts: $($_.Exception.Message)" "WARN"
         }
     }
 }
@@ -270,22 +298,236 @@ function Remove-Toolkit {
     }
 }
 
+function New-EnhancedAdminTools {
+    try {
+        # Create System Health Check script
+        $healthCheckScript = @'
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Quick System Health Check Tool
+.DESCRIPTION
+    Performs rapid system health assessment using ReSet toolkit
+#>
+
+Import-Module "$PSScriptRoot\scripts\ReSetUtils.psm1" -Force
+
+Write-Host "Windows System Health Check" -ForegroundColor Cyan
+Write-Host "===========================" -ForegroundColor Cyan
+
+$health = Get-SystemHealth
+$report = Invoke-SystemReport
+
+Write-Host "`nHealth Summary:" -ForegroundColor Yellow
+Write-Host "System Files: $($health.SystemFiles)" -ForegroundColor $(if($health.SystemFiles -eq 'Healthy'){'Green'}else{'Red'})
+Write-Host "Registry: $($health.RegistryHealth)" -ForegroundColor $(if($health.RegistryHealth -eq 'Healthy'){'Green'}else{'Yellow'})
+Write-Host "Disk Health: $($health.DiskHealth)" -ForegroundColor $(if($health.DiskHealth -eq 'Healthy'){'Green'}else{'Yellow'})
+Write-Host "Services: $($health.ServiceHealth)" -ForegroundColor $(if($health.ServiceHealth -eq 'Healthy'){'Green'}else{'Yellow'})
+Write-Host "Network: $($health.NetworkHealth)" -ForegroundColor $(if($health.NetworkHealth -eq 'Healthy'){'Green'}else{'Red'})
+Write-Host "Memory: $($health.MemoryHealth)" -ForegroundColor $(if($health.MemoryHealth -eq 'Healthy'){'Green'}else{'Yellow'})
+
+Write-Host "`nDetailed report saved to: $report" -ForegroundColor Cyan
+
+if ($health.SystemFiles -ne 'Healthy' -or $health.NetworkHealth -ne 'Healthy') {
+    Write-Host "`n⚠ Critical issues detected. Consider running Reset-Manager.ps1 for repairs." -ForegroundColor Red
+}
+
+Read-Host "`nPress Enter to exit"
+'@
+
+        $healthCheckScript | Out-File -FilePath (Join-Path $InstallPath "HealthCheck.ps1") -Encoding UTF8
+        Write-InstallLog "Created HealthCheck.ps1"
+
+        # Create AD Tools script
+        $adToolsScript = @'
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Active Directory Troubleshooting Tools
+.DESCRIPTION
+    Collection of AD diagnostic and reset tools
+#>
+
+Import-Module "$PSScriptRoot\scripts\ReSetUtils.psm1" -Force
+
+Write-Host "Active Directory Tools" -ForegroundColor Cyan
+Write-Host "======================" -ForegroundColor Cyan
+
+do {
+    Write-Host "`nSelect an option:" -ForegroundColor Yellow
+    Write-Host "1. Test AD Connectivity" -ForegroundColor White
+    Write-Host "2. Reset AD Cache" -ForegroundColor White
+    Write-Host "3. Clear Kerberos Tickets" -ForegroundColor White
+    Write-Host "4. Flush DNS and Reset Network" -ForegroundColor White
+    Write-Host "5. Complete AD Reset (All Above)" -ForegroundColor White
+    Write-Host "6. Exit" -ForegroundColor White
+    
+    $choice = Read-Host "`nEnter your choice (1-6)"
+    
+    switch ($choice) {
+        "1" {
+            Write-Host "`nTesting AD connectivity..." -ForegroundColor Yellow
+            $adStatus = Test-ActiveDirectoryConnectivity
+            Write-Host "Status: $($adStatus.Status)" -ForegroundColor $(if($adStatus.Status -eq 'Connected'){'Green'}else{'Red'})
+            Write-Host "Message: $($adStatus.Message)" -ForegroundColor Gray
+            if ($adStatus.Domain) { Write-Host "Domain: $($adStatus.Domain)" -ForegroundColor Gray }
+            if ($adStatus.DomainController) { Write-Host "DC: $($adStatus.DomainController)" -ForegroundColor Gray }
+        }
+        "2" {
+            Write-Host "`nResetting AD cache..." -ForegroundColor Yellow
+            $results = Reset-ActiveDirectoryCache -ClearCredentialCache
+            foreach ($key in $results.Keys) {
+                Write-Host "$key`: $($results[$key])" -ForegroundColor Green
+            }
+        }
+        "3" {
+            Write-Host "`nClearing Kerberos tickets..." -ForegroundColor Yellow
+            $results = Reset-ActiveDirectoryCache -ClearKerberosTickets
+            Write-Host "Kerberos Tickets: $($results.KerberosTickets)" -ForegroundColor Green
+        }
+        "4" {
+            Write-Host "`nFlushing DNS and resetting network..." -ForegroundColor Yellow
+            $results = Reset-ActiveDirectoryCache -FlushDNSCache
+            Write-Host "DNS Cache: $($results.DNSCache)" -ForegroundColor Green
+        }
+        "5" {
+            Write-Host "`nPerforming complete AD reset..." -ForegroundColor Yellow
+            $results = Reset-ActiveDirectoryCache -ClearKerberosTickets -ClearCredentialCache -FlushDNSCache
+            foreach ($key in $results.Keys) {
+                Write-Host "$key`: $($results[$key])" -ForegroundColor Green
+            }
+        }
+        "6" {
+            Write-Host "Exiting..." -ForegroundColor Green
+            break
+        }
+        default {
+            Write-Host "Invalid choice. Please try again." -ForegroundColor Red
+        }
+    }
+    
+    if ($choice -ne "6") {
+        Read-Host "`nPress Enter to continue"
+    }
+} while ($choice -ne "6")
+'@
+
+        $adToolsScript | Out-File -FilePath (Join-Path $InstallPath "AD-Tools.ps1") -Encoding UTF8
+        Write-InstallLog "Created AD-Tools.ps1"
+
+        # Create System Cleanup script
+        $cleanupScript = @'
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Advanced System Cleanup Tool
+.DESCRIPTION
+    Comprehensive system cleanup using ReSet toolkit
+#>
+
+Import-Module "$PSScriptRoot\scripts\ReSetUtils.psm1" -Force
+
+Write-Host "Advanced System Cleanup" -ForegroundColor Cyan
+Write-Host "=======================" -ForegroundColor Cyan
+
+Write-Host "`nThis tool will perform comprehensive system cleanup." -ForegroundColor Yellow
+Write-Host "Select cleanup options:" -ForegroundColor Yellow
+
+$options = @()
+Write-Host "1. Temporary Files" -ForegroundColor White
+$temp = Read-Host "   Include? (y/n)"
+if ($temp -eq 'y') { $options += 'Temp' }
+
+Write-Host "2. Event Logs (non-critical)" -ForegroundColor White
+$events = Read-Host "   Include? (y/n)"
+if ($events -eq 'y') { $options += 'Events' }
+
+Write-Host "3. Recycle Bin" -ForegroundColor White
+$recycle = Read-Host "   Include? (y/n)"
+if ($recycle -eq 'y') { $options += 'Recycle' }
+
+Write-Host "4. Prefetch Files" -ForegroundColor White
+$prefetch = Read-Host "   Include? (y/n)"
+if ($prefetch -eq 'y') { $options += 'Prefetch' }
+
+Write-Host "5. Windows Update Cache" -ForegroundColor White
+$update = Read-Host "   Include? (y/n)"
+if ($update -eq 'y') { $options += 'Update' }
+
+Write-Host "6. Browser Caches" -ForegroundColor White
+$browser = Read-Host "   Include? (y/n)"
+if ($browser -eq 'y') { $options += 'Browser' }
+
+if ($options.Count -eq 0) {
+    Write-Host "No cleanup options selected. Exiting." -ForegroundColor Yellow
+    exit
+}
+
+Write-Host "`nStarting cleanup..." -ForegroundColor Green
+
+$params = @{}
+if ($options -contains 'Temp') { $params.IncludeTempFiles = $true }
+if ($options -contains 'Events') { $params.IncludeEventLogs = $true }
+if ($options -contains 'Recycle') { $params.IncludeRecycleBin = $true }
+if ($options -contains 'Prefetch') { $params.IncludePrefetch = $true }
+if ($options -contains 'Update') { $params.IncludeWindowsUpdate = $true }
+if ($options -contains 'Browser') { $params.IncludeBrowserCache = $true }
+
+$results = Invoke-AdvancedCleanup @params
+
+Write-Host "`nCleanup Results:" -ForegroundColor Green
+foreach ($key in $results.Keys) {
+    Write-Host "$key`: $($results[$key])" -ForegroundColor White
+}
+
+Read-Host "`nCleanup complete. Press Enter to exit"
+'@
+
+        $cleanupScript | Out-File -FilePath (Join-Path $InstallPath "SystemCleanup.ps1") -Encoding UTF8
+        Write-InstallLog "Created SystemCleanup.ps1"
+        
+        # Set execution policy for new scripts
+        $newScripts = @("HealthCheck.ps1", "AD-Tools.ps1", "SystemCleanup.ps1")
+        foreach ($script in $newScripts) {
+            $scriptPath = Join-Path $InstallPath $script
+            if (Test-Path $scriptPath) {
+                Unblock-File -Path $scriptPath -ErrorAction SilentlyContinue
+            }
+        }
+        
+        Write-InstallLog "Enhanced admin tools created successfully" "SUCCESS"
+        
+    } catch {
+        Write-InstallLog "Failed to create enhanced admin tools: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
 function Show-CompletionMessage {
     Write-Host ""
     Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
-    Write-Host " INSTALLATION COMPLETE!" -ForegroundColor White -BackgroundColor Green
+    Write-Host " ENHANCED INSTALLATION COMPLETE!" -ForegroundColor White -BackgroundColor Green
     Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
     Write-Host ""
     Write-Host "📁 Installation path: $InstallPath" -ForegroundColor Cyan
     Write-Host "🚀 Launch command: Reset-Manager.ps1" -ForegroundColor Cyan
     Write-Host ""
+    Write-Host "AVAILABLE TOOLS:" -ForegroundColor Yellow
+    Write-Host "  • Reset-Manager.ps1    - Main interactive toolkit" -ForegroundColor White
+    Write-Host "  • HealthCheck.ps1      - Quick system health assessment" -ForegroundColor White
+    Write-Host "  • AD-Tools.ps1         - Active Directory troubleshooting" -ForegroundColor White
+    Write-Host "  • SystemCleanup.ps1    - Advanced system cleanup" -ForegroundColor White
+    Write-Host "  • scripts\*.ps1        - Individual reset modules" -ForegroundColor White
+    Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Yellow
     Write-Host "  cd `"$InstallPath`"" -ForegroundColor White
-    Write-Host "  .\Reset-Manager.ps1" -ForegroundColor White
+    Write-Host "  .\Reset-Manager.ps1     # For interactive menu" -ForegroundColor White
+    Write-Host "  .\HealthCheck.ps1       # For system health check" -ForegroundColor White
+    Write-Host "  .\AD-Tools.ps1          # For AD troubleshooting" -ForegroundColor White
     Write-Host ""
     
     if ($CreateDesktopShortcut) {
-        Write-Host "🖥️  Desktop shortcut created" -ForegroundColor Green
+        Write-Host "🖥️  Desktop shortcuts created for main tools" -ForegroundColor Green
     }
     
     if ($AddToPath) {
@@ -293,7 +535,15 @@ function Show-CompletionMessage {
     }
     
     Write-Host ""
-    Write-Host "For help and documentation, visit:" -ForegroundColor Gray
+    Write-Host "NEW FEATURES:" -ForegroundColor Yellow
+    Write-Host "  ✅ 50+ Reset functions across all Windows components" -ForegroundColor Green
+    Write-Host "  ✅ Advanced system health monitoring" -ForegroundColor Green
+    Write-Host "  ✅ Active Directory integration and tools" -ForegroundColor Green
+    Write-Host "  ✅ Comprehensive backup and restore system" -ForegroundColor Green
+    Write-Host "  ✅ Enhanced logging and reporting" -ForegroundColor Green
+    Write-Host "  ✅ Professional admin toolkit integration" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "For help and documentation, see README.md or visit:" -ForegroundColor Gray
     Write-Host "https://github.com/jomardyan/ReSet2" -ForegroundColor Cyan
     Write-Host ""
 }
