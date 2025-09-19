@@ -257,7 +257,7 @@ function Test-DeploymentEnvironment {
         
         # Check disk space (minimum 100MB)
         $installDrive = Split-Path $InstallPath -Qualifier
-        $freeSpace = (Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DeviceID -eq $installDrive }).FreeSpace
+        $freeSpace = (Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DeviceID -eq $installDrive }).FreeSpace
         if ($freeSpace -lt 100MB) {
             $validation.Issues += "Insufficient disk space (minimum 100MB required)"
             $validation.Valid = $false
@@ -265,7 +265,7 @@ function Test-DeploymentEnvironment {
         
         # Check domain membership for domain deployments
         if ($DeploymentScope -eq "Domain") {
-            $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+            $computerSystem = Get-ComputerInfo
             if (-not $computerSystem.PartOfDomain) {
                 $validation.Issues += "Computer must be domain-joined for domain deployment"
                 $validation.Valid = $false

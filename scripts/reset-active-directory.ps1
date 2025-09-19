@@ -64,7 +64,7 @@ function Reset-DomainConnectivity {
         )
         
         Write-ProgressStep "Checking current domain status..."
-        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        $computerSystem = Get-ComputerInfo
         
         if (-not $computerSystem.PartOfDomain) {
             Write-Host "Computer is not domain-joined. Skipping domain connectivity reset." -ForegroundColor Yellow

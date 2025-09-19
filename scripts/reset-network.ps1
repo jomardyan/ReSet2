@@ -169,28 +169,44 @@ try {
     
     # Additional network resets (functions 7-15)
     Write-ProgressStep -StepName "Resetting DHCP client" -CurrentStep 7 -TotalSteps 15
-    try { $null = & ipconfig /release 2>&1; $null = & ipconfig /renew 2>&1 } catch {}
+    try { $null = & ipconfig /release 2>&1; $null = & ipconfig /renew 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting NetBIOS" -CurrentStep 8 -TotalSteps 15
-    try { $null = & nbtstat -RR 2>&1 } catch {}
+    try { $null = & nbtstat -RR 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting routing table" -CurrentStep 9 -TotalSteps 15
-    try { $null = & route -f 2>&1 } catch {}
+    try { $null = & route -f 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting ARP cache" -CurrentStep 10 -TotalSteps 15
-    try { $null = & arp -d * 2>&1 } catch {}
+    try { $null = & arp -d * 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting SMB settings" -CurrentStep 11 -TotalSteps 15
-    try { Set-SmbClientConfiguration -EnableMultiChannel $true -Force -ErrorAction SilentlyContinue } catch {}
+    try { Set-SmbClientConfiguration -EnableMultiChannel $true -Force -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting network discovery" -CurrentStep 12 -TotalSteps 15
-    try { $null = & netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes 2>&1 } catch {}
+    try { $null = & netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting file sharing" -CurrentStep 13 -TotalSteps 15
-    try { $null = & netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes 2>&1 } catch {}
+    try { $null = & netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting network location" -CurrentStep 14 -TotalSteps 15
-    try { Set-NetConnectionProfile -NetworkCategory Private -ErrorAction SilentlyContinue } catch {}
+    try { Set-NetConnectionProfile -NetworkCategory Private -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Restarting network services" -CurrentStep 15 -TotalSteps 15
     $services = @("Dnscache", "Dhcp", "Netman", "NlaSvc")
@@ -264,8 +280,9 @@ function Test-NetworkConfiguration {
             Timestamp = Get-Date
         }
         
-        # Test network connectivity
-        $connectivity = Test-NetConnection -ComputerName "8.8.8.8" -Port 53 -InformationLevel Quiet
+        # Test network connectivity (using Google DNS as external test)
+        $testServer = "8.8.8.8"  # Google DNS - well-known external server
+        $connectivity = Test-NetConnection -ComputerName $testServer -Port 53 -InformationLevel Quiet
         if (-not $connectivity) {
             $results.Issues += "External connectivity failed"
         }

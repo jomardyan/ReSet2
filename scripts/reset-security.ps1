@@ -37,7 +37,9 @@ try {
         Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction SilentlyContinue
         Set-MpPreference -DisableBehaviorMonitoring $false -ErrorAction SilentlyContinue
         Set-MpPreference -DisableIOAVProtection $false -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting privacy settings" -CurrentStep 3 -TotalSteps 10
     $privacyPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore"
@@ -51,7 +53,9 @@ try {
         Stop-Service -Name "WSearch" -Force -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:ProgramData\Microsoft\Search\Data\Applications\Windows\*" -Recurse -Force -ErrorAction SilentlyContinue
         Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting Start Menu" -CurrentStep 5 -TotalSteps 10
     $startMenuPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
@@ -62,7 +66,9 @@ try {
     try {
         $null = & dism /online /export-defaultappassociations:"$env:TEMP\DefaultAssoc.xml" 2>&1
         $null = & dism /online /import-defaultappassociations:"$env:TEMP\DefaultAssoc.xml" 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting fonts" -CurrentStep 7 -TotalSteps 10
     $fontPath = "HKCU:\Control Panel\Desktop"
@@ -73,12 +79,16 @@ try {
     try {
         $null = & powercfg /restoredefaultschemes 2>&1
         $null = & powercfg /setactive SCHEME_BALANCED 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting browser settings" -CurrentStep 9 -TotalSteps 10
     try {
         $null = & RunDll32.exe InetCpl.cpl,ResetIEtoDefaults 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting input devices" -CurrentStep 10 -TotalSteps 10
     $mousePath = "HKCU:\Control Panel\Mouse"

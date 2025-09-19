@@ -40,7 +40,9 @@ try {
     Write-ProgressStep -StepName "Stopping Windows Update services" -CurrentStep 1 -TotalSteps 20
     $updateServices = @("wuauserv", "cryptSvc", "bits", "msiserver", "TrustedInstaller")
     foreach ($service in $updateServices) {
-        try { Stop-Service -Name $service -Force -ErrorAction SilentlyContinue } catch {}
+        try { Stop-Service -Name $service -Force -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     }
     Write-ReSetLog "Windows Update services stopped" "SUCCESS"
     
@@ -52,7 +54,9 @@ try {
     )
     foreach ($path in $updatePaths) {
         if (Test-Path $path) {
-            try { Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            try { Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
         }
     }
     Write-ReSetLog "Windows Update cache cleared" "SUCCESS"
@@ -71,18 +75,24 @@ try {
               "msxml6.dll", "actxprxy.dll", "softpub.dll", "wintrust.dll", "dssenh.dll",
               "rsaenh.dll", "gpkcsp.dll", "sccbase.dll", "slbcsp.dll", "cryptdlg.dll")
     foreach ($dll in $dlls) {
-        try { $null = & regsvr32 /s $dll 2>&1 } catch {}
+        try { $null = & regsvr32 /s $dll 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     }
     Write-ReSetLog "Windows Update components re-registered" "SUCCESS"
     
     # Function 5: Reset BITS service
     Write-ProgressStep -StepName "Resetting BITS service" -CurrentStep 5 -TotalSteps 20
-    try { $null = & bitsadmin /reset /allusers 2>&1 } catch {}
+    try { $null = & bitsadmin /reset /allusers 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     Write-ReSetLog "BITS service reset" "SUCCESS"
     
     # Function 6: Reset Windows Update Agent
     Write-ProgressStep -StepName "Resetting Windows Update Agent" -CurrentStep 6 -TotalSteps 20
-    try { $null = & wuauclt /resetauthorization /detectnow 2>&1 } catch {}
+    try { $null = & wuauclt /resetauthorization /detectnow 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     Write-ReSetLog "Windows Update Agent reset" "SUCCESS"
     
     # Function 7: Clear Windows Update logs
@@ -90,7 +100,9 @@ try {
     $logPaths = @("$env:SystemRoot\Logs\WindowsUpdate", "$env:SystemRoot\WindowsUpdate.log")
     foreach ($logPath in $logPaths) {
         if (Test-Path $logPath) {
-            try { Remove-Item -Path $logPath -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            try { Remove-Item -Path $logPath -Recurse -Force -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
         }
     }
     Write-ReSetLog "Windows Update logs cleared" "SUCCESS"
@@ -105,7 +117,9 @@ try {
     
     # Function 9: Reset Windows Store updates
     Write-ProgressStep -StepName "Resetting Windows Store updates" -CurrentStep 9 -TotalSteps 20
-    try { $null = & wsreset 2>&1 } catch {}
+    try { $null = & wsreset 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     Write-ReSetLog "Windows Store update cache reset" "SUCCESS"
     
     # Function 10: Reset Update Orchestrator
@@ -116,13 +130,19 @@ try {
     
     # Functions 11-20: Additional Windows Update resets
     Write-ProgressStep -StepName "Resetting delivery optimization" -CurrentStep 11 -TotalSteps 20
-    try { Get-DeliveryOptimizationStatus | Clear-DeliveryOptimizationCache -ErrorAction SilentlyContinue } catch {}
+    try { Get-DeliveryOptimizationStatus | Clear-DeliveryOptimizationCache -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting component store" -CurrentStep 12 -TotalSteps 20
-    try { $null = & dism /online /cleanup-image /restorehealth 2>&1 } catch {}
+    try { $null = & dism /online /cleanup-image /restorehealth 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting Windows modules" -CurrentStep 13 -TotalSteps 20
-    try { $null = & sfc /scannow 2>&1 } catch {}
+    try { $null = & sfc /scannow 2>&1 } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting pending updates" -CurrentStep 14 -TotalSteps 20
     Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Services\Pending"
@@ -146,7 +166,9 @@ try {
     # Function 20: Start Windows Update services
     Write-ProgressStep -StepName "Starting Windows Update services" -CurrentStep 20 -TotalSteps 20
     foreach ($service in $updateServices) {
-        try { Start-Service -Name $service -ErrorAction SilentlyContinue } catch {}
+        try { Start-Service -Name $service -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     }
     Write-ReSetLog "Windows Update services restarted" "SUCCESS"
     

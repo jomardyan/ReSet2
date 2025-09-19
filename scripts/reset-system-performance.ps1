@@ -80,9 +80,9 @@ function Reset-SystemPerformance {
         
         Write-ProgressStep "Analyzing current system performance..."
         $systemInfo = @{
-            TotalRAM = [math]::Round((Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
-            AvailableRAM = [math]::Round((Get-WmiObject -Class Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)
-            CPUCount = (Get-WmiObject -Class Win32_ComputerSystem).NumberOfProcessors
+            TotalRAM = [math]::Round((Get-ComputerInfo
+            AvailableRAM = [math]::Round((Get-ComputerInfo
+            CPUCount = (Get-ComputerInfo
             OSVersion = [System.Environment]::OSVersion.Version
         }
         
@@ -193,7 +193,7 @@ function Reset-MemoryManagement {
         $memPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
         
         # Get system RAM to calculate optimal page file size
-        $totalRAM = (Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory / 1GB
+        $totalRAM = (Get-ComputerInfo
         
         if ($totalRAM -ge 8) {
             # Systems with 8GB+ RAM
@@ -253,7 +253,7 @@ function Reset-DiskOptimization {
         Write-ProgressStep "Optimizing disk cache settings..."
         
         # Get all disk drives
-        $drives = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
+        $drives = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
         
         foreach ($drive in $drives) {
             $driveLetter = $drive.DeviceID.Replace(':', '')

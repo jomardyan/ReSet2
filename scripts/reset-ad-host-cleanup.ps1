@@ -68,7 +68,7 @@ function Reset-ComputerAccount {
         )
         
         Write-ProgressStep "Checking current computer account status..."
-        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        $computerSystem = Get-ComputerInfo
         
         if (-not $computerSystem.PartOfDomain) {
             Write-Host "Computer is not domain-joined. Skipping computer account reset." -ForegroundColor Yellow
@@ -172,7 +172,7 @@ function Reset-DomainTrust {
         }
         
         Write-ProgressStep "Checking domain trust status..."
-        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        $computerSystem = Get-ComputerInfo
         
         if (-not $computerSystem.PartOfDomain) {
             Write-Host "Computer is not domain-joined. Skipping trust reset." -ForegroundColor Yellow
@@ -598,7 +598,7 @@ function Repair-DomainMembership {
         }
         
         Write-ProgressStep "Diagnosing domain membership issues..."
-        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        $computerSystem = Get-ComputerInfo
         
         if (-not $computerSystem.PartOfDomain) {
             Write-Host "Computer is not domain-joined. Cannot repair domain membership." -ForegroundColor Red

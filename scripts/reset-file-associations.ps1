@@ -32,7 +32,9 @@ try {
         $null = & dism /online /export-defaultappassociations:$tempAssoc 2>&1
         $null = & dism /online /import-defaultappassociations:$tempAssoc 2>&1
         Remove-Item -Path $tempAssoc -Force -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Reset common file extensions
     Write-ProgressStep -StepName "Resetting common file extensions" -CurrentStep 2 -TotalSteps 8
@@ -51,7 +53,9 @@ try {
     foreach ($ext in $extensions.GetEnumerator()) {
         try {
             $null = & assoc $ext.Key=$ext.Value 2>&1
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
     }
     
     # Reset protocol associations
@@ -110,7 +114,9 @@ try {
     Write-ProgressStep -StepName "Refreshing shell associations" -CurrentStep 8 -TotalSteps 8
     try {
         $null = & sfc /scannow 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Notify shell of changes
     Add-Type -TypeDefinition @"

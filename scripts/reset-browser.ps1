@@ -1,1 +1,59 @@
-# Reset Browser Settings Script\n#Requires -Version 5.0\n#Requires -RunAsAdministrator\n\nparam([switch]$Silent, [switch]$CreateBackup = $true, [switch]$Force)\n\n$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition\nImport-Module (Join-Path $scriptPath \"ReSetUtils.psm1\") -Force\n\n$operationName = \"Browser Settings Reset\"\n\ntry {\n    Assert-AdminRights\n    $operation = Start-ReSetOperation -OperationName $operationName\n    \n    # Reset Internet Explorer\n    Write-ProgressStep -StepName \"Resetting Internet Explorer\" -CurrentStep 1 -TotalSteps 4\n    try {\n        $null = & RunDll32.exe InetCpl.cpl,ResetIEtoDefaults 2>&1\n    } catch {}\n    \n    # Reset Edge settings\n    Write-ProgressStep -StepName \"Resetting Microsoft Edge\" -CurrentStep 2 -TotalSteps 4\n    $edgeDataPath = \"$env:LocalAppData\\Microsoft\\Edge\\User Data\"\n    if (Test-Path $edgeDataPath) {\n        Get-Process -Name \"msedge\" -ErrorAction SilentlyContinue | Stop-Process -Force\n        Start-Sleep -Seconds 2\n    }\n    \n    # Clear browser caches\n    Write-ProgressStep -StepName \"Clearing browser caches\" -CurrentStep 3 -TotalSteps 4\n    $cachePaths = @(\n        \"$env:LocalAppData\\Microsoft\\Windows\\INetCache\",\n        \"$env:LocalAppData\\Microsoft\\Edge\\User Data\\Default\\Cache\",\n        \"$env:AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache\"\n    )\n    foreach ($path in $cachePaths) {\n        if (Test-Path $path) {\n            Remove-Item -Path \"$path\\*\" -Recurse -Force -ErrorAction SilentlyContinue\n        }\n    }\n    \n    # Reset browser security zones\n    Write-ProgressStep -StepName \"Resetting security zones\" -CurrentStep 4 -TotalSteps 4\n    $zonesPath = \"HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Zones\"\n    if (Test-Path $zonesPath) {\n        Remove-RegistryKey -Path $zonesPath\n    }\n    \n    Write-ReSetLog \"Browser settings reset completed successfully\" \"SUCCESS\"\n    Complete-ReSetOperation -OperationInfo $operation -Success $true\n}\ncatch {\n    Complete-ReSetOperation -OperationInfo $operation -Success $false -ErrorMessage $_.Exception.Message\n    throw\n}"
+# Reset Browser Settings Script
+#Requires -Version 5.0
+#Requires -RunAsAdministrator
+
+param([switch]$Silent, [switch]$CreateBackup = $true, [switch]$Force)
+
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+Import-Module (Join-Path $scriptPath "ReSetUtils.psm1") -Force
+
+$operationName = "Browser Settings Reset"
+
+try {
+    Assert-AdminRights
+    $operation = Start-ReSetOperation -OperationName $operationName
+    
+    # Reset Internet Explorer
+    Write-ProgressStep -StepName "Resetting Internet Explorer" -CurrentStep 1 -TotalSteps 4
+    try {
+        $null = & RunDll32.exe InetCpl.cpl,ResetIEtoDefaults 2>&1
+    }
+    catch {
+        # Silently continue - non-critical operation
+    }
+    
+    # Reset Edge settings
+    Write-ProgressStep -StepName "Resetting Microsoft Edge" -CurrentStep 2 -TotalSteps 4
+    $edgeDataPath = "$env:LocalAppData\Microsoft\Edge\User Data"
+    if (Test-Path $edgeDataPath) {
+        Get-Process -Name "msedge" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 2
+    }
+    
+    # Clear browser caches
+    Write-ProgressStep -StepName "Clearing browser caches" -CurrentStep 3 -TotalSteps 4
+    $cachePaths = @(
+        "$env:LocalAppData\Microsoft\Windows\INetCache",
+        "$env:LocalAppData\Microsoft\Edge\User Data\Default\Cache",
+        "$env:AppData\Local\Google\Chrome\User Data\Default\Cache"
+    )
+    foreach ($path in $cachePaths) {
+        if (Test-Path $path) {
+            Remove-Item -Path "$path\*" -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    
+    # Reset browser security zones
+    Write-ProgressStep -StepName "Resetting security zones" -CurrentStep 4 -TotalSteps 4
+    $zonesPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Zones"
+    if (Test-Path $zonesPath) {
+        Remove-RegistryKey -Path $zonesPath
+    }
+    
+    Write-ReSetLog "Browser settings reset completed successfully" "SUCCESS"
+    Complete-ReSetOperation -OperationInfo $operation -Success $true
+}
+catch {
+    Complete-ReSetOperation -OperationInfo $operation -Success $false -ErrorMessage $_.Exception.Message
+    throw
+}

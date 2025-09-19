@@ -238,7 +238,9 @@ try {
         # Register event source
         try {
             New-EventLog -LogName Application -Source "WindowsResetToolkit" -ErrorAction SilentlyContinue
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
         
         # Create scheduled task
         $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$scriptPath`""
@@ -262,7 +264,9 @@ function Remove-Toolkit {
         try {
             Unregister-ScheduledTask -TaskName "WindowsResetToolkit-Maintenance" -Confirm:$false -ErrorAction SilentlyContinue
             Write-InstallLog "Removed scheduled task"
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
         
         # Remove from PATH
         try {
@@ -272,7 +276,9 @@ function Remove-Toolkit {
             $newPath = $newPath -replace [regex]::Escape($InstallPath), ""
             [Environment]::SetEnvironmentVariable("PATH", $newPath, "Machine")
             Write-InstallLog "Removed from system PATH"
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
         
         # Remove desktop shortcut
         try {
@@ -282,7 +288,9 @@ function Remove-Toolkit {
                 Remove-Item -Path $shortcutPath -Force
                 Write-InstallLog "Removed desktop shortcut"
             }
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
         
         # Remove installation directory
         if (Test-Path $InstallPath) {

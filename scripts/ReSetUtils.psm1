@@ -305,6 +305,7 @@ function Set-RegistryValue {
     .PARAMETER Type
     Value type (String, DWord, QWord, etc.)
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path,
@@ -319,20 +320,25 @@ function Set-RegistryValue {
         [string]$Type = "String"
     )
     
-    try {
-        # Ensure the registry path exists
-        if (!(Test-Path $Path)) {
-            New-Item -Path $Path -Force | Out-Null
-            Write-ReSetLog "Created registry path: $Path" "INFO"
+    if ($PSCmdlet.ShouldProcess("$Path\$Name", "Set registry value to '$Value'")) {
+        try {
+            # Ensure the registry path exists
+            if (!(Test-Path $Path)) {
+                New-Item -Path $Path -Force | Out-Null
+                Write-ReSetLog "Created registry path: $Path" "INFO"
+            }
+            
+            # Set the registry value
+            Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
+            Write-ReSetLog "Set registry value: $Path\$Name = $Value" "SUCCESS"
+            return $true
         }
-        
-        # Set the registry value
-        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
-        Write-ReSetLog "Set registry value: $Path\$Name = $Value" "SUCCESS"
-        return $true
-    }
-    catch {
-        Write-ReSetLog "Failed to set registry value $Path\$Name : $($_.Exception.Message)" "ERROR"
+        catch {
+            Write-ReSetLog "Failed to set registry value $Path\$Name : $($_.Exception.Message)" "ERROR"
+            return $false
+        }
+    } else {
+        Write-ReSetLog "Registry value change cancelled by user: $Path\$Name" "INFO"
         return $false
     }
 }
@@ -342,6 +348,7 @@ function Remove-RegistryValue {
     .SYNOPSIS
     Safely removes a registry value with error handling and logging.
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path,
@@ -350,20 +357,25 @@ function Remove-RegistryValue {
         [string]$Name
     )
     
-    try {
-        if (Test-Path $Path) {
-            $property = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
-            if ($property) {
-                Remove-ItemProperty -Path $Path -Name $Name -Force
-                Write-ReSetLog "Removed registry value: $Path\$Name" "SUCCESS"
-                return $true
+    if ($PSCmdlet.ShouldProcess("$Path\$Name", "Remove registry value")) {
+        try {
+            if (Test-Path $Path) {
+                $property = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
+                if ($property) {
+                    Remove-ItemProperty -Path $Path -Name $Name -Force
+                    Write-ReSetLog "Removed registry value: $Path\$Name" "SUCCESS"
+                    return $true
+                }
             }
+            Write-ReSetLog "Registry value not found: $Path\$Name" "WARN"
+            return $true
         }
-        Write-ReSetLog "Registry value not found: $Path\$Name" "WARN"
-        return $true
-    }
-    catch {
-        Write-ReSetLog "Failed to remove registry value $Path\$Name : $($_.Exception.Message)" "ERROR"
+        catch {
+            Write-ReSetLog "Failed to remove registry value $Path\$Name : $($_.Exception.Message)" "ERROR"
+            return $false
+        }
+    } else {
+        Write-ReSetLog "Registry value removal cancelled by user: $Path\$Name" "INFO"
         return $false
     }
 }
@@ -373,22 +385,28 @@ function Remove-RegistryKey {
     .SYNOPSIS
     Safely removes a registry key with error handling and logging.
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path
     )
     
-    try {
-        if (Test-Path $Path) {
-            Remove-Item -Path $Path -Recurse -Force
-            Write-ReSetLog "Removed registry key: $Path" "SUCCESS"
+    if ($PSCmdlet.ShouldProcess($Path, "Remove registry key and all subkeys")) {
+        try {
+            if (Test-Path $Path) {
+                Remove-Item -Path $Path -Recurse -Force
+                Write-ReSetLog "Removed registry key: $Path" "SUCCESS"
+                return $true
+            }
+            Write-ReSetLog "Registry key not found: $Path" "WARN"
             return $true
         }
-        Write-ReSetLog "Registry key not found: $Path" "WARN"
-        return $true
-    }
-    catch {
-        Write-ReSetLog "Failed to remove registry key $Path : $($_.Exception.Message)" "ERROR"
+        catch {
+            Write-ReSetLog "Failed to remove registry key $Path : $($_.Exception.Message)" "ERROR"
+            return $false
+        }
+    } else {
+        Write-ReSetLog "Registry key removal cancelled by user: $Path" "INFO"
         return $false
     }
 }
@@ -635,7 +653,7 @@ function Get-SystemHealth {
         
         # Disk Health
         Write-Host "Checking disk health..." -ForegroundColor Yellow
-        $disks = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
+        $disks = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
         $diskIssues = @()
         foreach ($disk in $disks) {
             $freePercent = ($disk.FreeSpace / $disk.Size) * 100
@@ -681,7 +699,7 @@ function Get-SystemHealth {
         
         # Memory Health
         Write-Host "Checking memory usage..." -ForegroundColor Yellow
-        $memory = Get-WmiObject -Class Win32_OperatingSystem
+        $memory = Get-ComputerInfo
         $memoryUsedPercent = (($memory.TotalVisibleMemorySize - $memory.FreePhysicalMemory) / $memory.TotalVisibleMemorySize) * 100
         $health.MemoryHealth = if ($memoryUsedPercent -lt 90) { 'Healthy' } else { "High usage ($([math]::Round($memoryUsedPercent, 2))%)" }
         
@@ -846,7 +864,7 @@ function Test-ActiveDirectoryConnectivity {
     
     try {
         # Check if machine is domain joined
-        $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+        $computerSystem = Get-ComputerInfo
         if ($computerSystem.PartOfDomain) {
             $domainName = $computerSystem.Domain
             
@@ -1423,9 +1441,9 @@ function Invoke-SystemReport {
             UserName = $env:USERNAME
             OSVersion = [System.Environment]::OSVersion.VersionString
             PowerShellVersion = $PSVersionTable.PSVersion.ToString()
-            Domain = (Get-WmiObject -Class Win32_ComputerSystem).Domain
-            LastBootTime = (Get-WmiObject -Class Win32_OperatingSystem).ConvertToDateTime((Get-WmiObject -Class Win32_OperatingSystem).LastBootUpTime)
-            TotalRAM = [math]::Round((Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
+            Domain = (Get-ComputerInfo
+            LastBootTime = (Get-ComputerInfo
+            TotalRAM = [math]::Round((Get-ComputerInfo
             SystemHealth = Get-SystemHealth
             ADStatus = Test-ActiveDirectoryConnectivity
             Timestamp = Get-Date

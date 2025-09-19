@@ -52,7 +52,9 @@ try {
     Write-ProgressStep -StepName "Rebuilding search index" -CurrentStep 5 -TotalSteps 8
     try {
         $null = & rundll32 shell32.dll,Control_RunDLL srchadmin.dll 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Reset search history
     Write-ProgressStep -StepName "Clearing search history" -CurrentStep 6 -TotalSteps 8

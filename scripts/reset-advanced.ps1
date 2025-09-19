@@ -30,7 +30,9 @@ try {
     try {
         Enable-WindowsOptionalFeature -Online -FeatureName "NetFx3" -All -NoRestart -ErrorAction SilentlyContinue
         Enable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServerRole" -All -NoRestart -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting environment variables" -CurrentStep 2 -TotalSteps 25
     [Environment]::SetEnvironmentVariable("TEMP", "$env:SystemRoot\TEMP", "Machine")
@@ -39,40 +41,54 @@ try {
     Write-ProgressStep -StepName "Resetting registry permissions" -CurrentStep 3 -TotalSteps 25
     try {
         $null = & icacls "$env:SystemRoot\System32\config\SOFTWARE" /grant "NT AUTHORITY\SYSTEM:(F)" 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting system restore" -CurrentStep 4 -TotalSteps 25
     try {
         Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
         $null = & vssadmin resize shadowstorage /for=C: /on=C: /maxsize=10% 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting Windows licensing" -CurrentStep 5 -TotalSteps 25
     try {
         $null = & slmgr /rearm 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting component store" -CurrentStep 6 -TotalSteps 25
     try {
         $null = & dism /online /cleanup-image /startcomponentcleanup /resetbase 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting WMI repository" -CurrentStep 7 -TotalSteps 25
     try {
         $null = & winmgmt /resetrepository 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting print spooler" -CurrentStep 8 -TotalSteps 25
     try {
         Stop-Service -Name "Spooler" -Force -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:SystemRoot\System32\spool\PRINTERS\*" -Force -ErrorAction SilentlyContinue
         Start-Service -Name "Spooler" -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ProgressStep -StepName "Resetting event logs" -CurrentStep 9 -TotalSteps 25
     $logs = @("Application", "System", "Security", "Setup")
     foreach ($log in $logs) {
-        try { Clear-EventLog -LogName $log -ErrorAction SilentlyContinue } catch {}
+        try { Clear-EventLog -LogName $log -ErrorAction SilentlyContinue } catch {
+                # Silently continue - non-critical operation
+            }
     }
     
     Write-ProgressStep -StepName "Resetting user profiles" -CurrentStep 10 -TotalSteps 25
@@ -141,7 +157,9 @@ try {
     try {
         $null = & cleanmgr /sagerun:1 2>&1
         $null = & sfc /scannow 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     Write-ReSetLog "Advanced system components reset completed" "SUCCESS"
     Complete-ReSetOperation -OperationInfo $operation -Success $true

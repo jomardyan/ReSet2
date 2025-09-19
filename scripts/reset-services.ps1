@@ -85,7 +85,9 @@ try {
                 } else {
                     Set-Service -Name $service.Key -StartupType $startupType -ErrorAction SilentlyContinue
                 }
-            } catch {}
+            } catch {
+                # Silently continue - non-critical operation
+            }
         }
     }
     
@@ -115,19 +117,25 @@ try {
     try {
         Get-ScheduledTask | Where-Object { $_.TaskPath -like "*Microsoft*" -and $_.State -eq "Disabled" } | 
             Enable-ScheduledTask -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Function 13: Reset Windows services dependencies
     Write-ProgressStep -StepName "Resetting service dependencies" -CurrentStep 13 -TotalSteps 15
     try {
         $null = & sc sdset BITS "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;PU)" 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Function 14: Reset performance counters
     Write-ProgressStep -StepName "Rebuilding performance counters" -CurrentStep 14 -TotalSteps 15
     try {
         $null = & lodctr /R 2>&1
-    } catch {}
+    } catch {
+                # Silently continue - non-critical operation
+            }
     
     # Function 15: Reset service recovery options
     Write-ProgressStep -StepName "Resetting service recovery" -CurrentStep 15 -TotalSteps 15
@@ -135,7 +143,9 @@ try {
     foreach ($service in $criticalServices) {
         try {
             $null = & sc failure $service reset= 86400 actions= restart/60000/restart/60000/restart/60000 2>&1
-        } catch {}
+        } catch {
+                # Silently continue - non-critical operation
+            }
     }
     
     Write-ReSetLog "Services and startup programs reset completed" "SUCCESS"
