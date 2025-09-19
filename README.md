@@ -4,7 +4,7 @@
 
 ## 🎯 Overview
 
-**ReSet Toolkit 2.0** is an enterprise-grade PowerShell toolkit designed for comprehensive Windows system reset, troubleshooting, and maintenance. This professional-grade solution provides 75+ specialized functions across 29 modules, featuring advanced Active Directory integration, comprehensive backup systems, and standalone admin tools.
+**ReSet Toolkit 2.0** is an enterprise-grade PowerShell toolkit designed for comprehensive Windows system reset, troubleshooting, and maintenance. This professional-grade solution provides 111+ specialized functions across 34 modules, featuring advanced Active Directory integration, Group Policy support, comprehensive backup systems, and standalone admin tools.
 
 **🔥 NEW IN 2.0: Active Directory Integration, Advanced Backup System, Performance Optimization, and Professional Admin Tools!**
 
@@ -13,16 +13,18 @@
 | Category | Modules | Functions | Key Features |
 |----------|---------|-----------|--------------|
 | **Core Utilities** | 1 | 26 | Logging, backup/restore, system health, AD connectivity |
+| **Group Policy** | 2 | 12 | Enterprise deployment, compliance, policy management |
 | **Active Directory** | 2 | 15 | Domain management, host cleanup, trust repair |
 | **Performance** | 1 | 8 | Memory optimization, disk tuning, service profiles |
 | **Windows Components** | 25 | 50+ | Complete Windows settings reset coverage |
 | **Admin Tools** | 3 | - | Health check, AD tools, system cleanup |
-| **Total** | **32** | **99+** | **Enterprise-ready administration suite** |
+| **Total** | **34** | **111+** | **Enterprise-ready administration suite** |
 
 ## 🚀 Key Features
 
 ### **🆕 New in Version 2.0**
 - **🌐 Active Directory Integration**: Comprehensive domain management and troubleshooting
+- **🏢 Group Policy Integration**: Enterprise deployment with GPO support and compliance
 - **💾 Advanced Backup System**: Compressed backups with verification and restore
 - **⚡ Performance Optimization**: System tuning with multiple performance profiles
 - **🛠️ Standalone Admin Tools**: Independent utilities for quick diagnostics
@@ -30,7 +32,8 @@
 - **🔧 Host Computer Cleanup**: Specialized AD cleanup for domain-joined machines
 
 ### **🎯 Core Features**
-- **🎯 Comprehensive Coverage**: 99+ functions across all Windows components
+- **🎯 Comprehensive Coverage**: 111+ functions across all Windows components
+- **🏢 Enterprise Integration**: Group Policy support with centralized management
 - **🛡️ Enterprise Security**: Backup-first operations with full rollback support
 - **📊 Professional Logging**: Comprehensive audit trails and operation tracking
 - **🎨 Interactive CLI**: Rich PowerShell interface with menu system
@@ -71,6 +74,55 @@
 - **DNS Registration Repair** - Reset host DNS registration in Active Directory
 - **Domain Membership Repair** - Complete domain membership troubleshooting workflow
 - **Orphaned Object Cleanup** - Clean orphaned AD objects related to the host
+
+## 🏢 Group Policy Integration (Enterprise)
+
+### **Enterprise Deployment Features**
+ReSet Toolkit 2.0 includes comprehensive Group Policy integration designed for enterprise environments with centralized management, compliance, and automated deployment capabilities.
+
+### **Group Policy Components**
+- **Administrative Templates (ADMX/ADML)** - Native Group Policy Management Console integration
+- **Policy Compliance Engine** - Automatic compliance checking and enforcement
+- **Centralized Configuration** - Registry-based settings deployment via GPO
+- **Enterprise Deployment Tools** - Automated installation and configuration scripts
+- **Audit and Compliance** - SIEM-compatible logging with Windows Event Log integration
+
+### **Key Policy Settings**
+- **Operations Control**: Enable/disable toolkit, restrict specific operations
+- **Security Settings**: Require approval, maintenance windows, remote execution control
+- **Backup Policies**: Mandatory backups, retention periods, automated cleanup
+- **Logging & Auditing**: Audit mode, log levels, Event Log integration
+- **User Experience**: Notification levels, silent mode, user override permissions
+
+### **Deployment Methods**
+```powershell
+# Method 1: Silent installation via GPO startup script
+.\Enterprise-Deployment.ps1 -InstallationType Silent -ConfigurationProfile Secure
+
+# Method 2: Software installation via MSI
+.\Enterprise-Deployment.ps1 -InstallationType MSI -ConfigurationProfile Standard
+
+# Method 3: Group Policy settings deployment
+.\scripts\GPO-Deployment.ps1 -PolicySettings @{
+    Enabled = $true
+    AuditMode = $true
+    BackupRequired = $true
+    MaintenanceWindow = "22-06"
+}
+```
+
+### **Configuration Profiles**
+- **🔒 Secure**: Maximum security for financial/healthcare (approval required, audit mode)
+- **🏢 Standard**: Balanced settings for general enterprise use
+- **🛠️ Development**: Relaxed settings for development environments
+- **📱 Kiosk**: Highly restricted for public/shared computers
+
+### **Compliance & Monitoring**
+- **Windows Event Log Integration** - Events 1001-1004 for operation tracking
+- **SIEM Compatibility** - JSON-formatted audit logs for security monitoring
+- **Policy Compliance Checking** - Automatic validation before operation execution
+- **Maintenance Windows** - Time-based operation restrictions
+- **Approval Workflows** - Administrative approval requirements for sensitive operations
 
 ## ⚡ Performance Optimization
 

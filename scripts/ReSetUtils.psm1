@@ -1496,7 +1496,596 @@ function Invoke-SystemReport {
 }
 
 # ===================================================================
-# EXPORT MODULE MEMBERS (UPDATED)
+# GROUP POLICY INTEGRATION FUNCTIONS
+# ===================================================================
+
+function Test-GroupPolicyCompliance {
+    <#
+    .SYNOPSIS
+        Tests if the current environment complies with Group Policy settings
+    .DESCRIPTION
+        Checks Group Policy settings to determine if ReSet operations are allowed
+    .PARAMETER OperationType
+        Type of operation to check compliance for
+    .PARAMETER PolicyScope
+        Scope of policy to check (Computer, User, or Both)
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Reset", "Backup", "Restore", "Cleanup", "All")]
+        [string]$OperationType,
+        
+        [Parameter()]
+        [ValidateSet("Computer", "User", "Both")]
+        [string]$PolicyScope = "Both"
+    )
+    
+    try {
+        $compliance = @{
+            Status = "Compliant"
+            Allowed = $true
+            Restrictions = @()
+            PolicySource = "None"
+        }
+        
+        # Check computer-level policies
+        if ($PolicyScope -eq "Computer" -or $PolicyScope -eq "Both") {
+            $computerPolicyPath = "HKLM:\SOFTWARE\Policies\ReSetToolkit"
+            
+            if (Test-Path $computerPolicyPath) {
+                $compliance.PolicySource = "Computer Policy"
+                
+                # Check if operations are disabled
+                $disabledOps = Get-ItemProperty -Path $computerPolicyPath -Name "DisabledOperations" -ErrorAction SilentlyContinue
+                if ($disabledOps -and $disabledOps.DisabledOperations) {
+                    $disabledList = $disabledOps.DisabledOperations -split ","
+                    if ($disabledList -contains $OperationType -or $disabledList -contains "All") {
+                        $compliance.Status = "Non-Compliant"
+                        $compliance.Allowed = $false
+                        $compliance.Restrictions += "Operation '$OperationType' disabled by Computer Policy"
+                    }
+                }
+                
+                # Check maintenance window
+                $maintenanceWindow = Get-ItemProperty -Path $computerPolicyPath -Name "MaintenanceWindow" -ErrorAction SilentlyContinue
+                if ($maintenanceWindow -and $maintenanceWindow.MaintenanceWindow) {
+                    $currentHour = (Get-Date).Hour
+                    $windowStart, $windowEnd = $maintenanceWindow.MaintenanceWindow -split "-"
+                    
+                    if ($currentHour -lt [int]$windowStart -or $currentHour -gt [int]$windowEnd) {
+                        $compliance.Status = "Non-Compliant"
+                        $compliance.Allowed = $false
+                        $compliance.Restrictions += "Outside maintenance window ($($maintenanceWindow.MaintenanceWindow))"
+                    }
+                }
+                
+                # Check required approval
+                $requireApproval = Get-ItemProperty -Path $computerPolicyPath -Name "RequireApproval" -ErrorAction SilentlyContinue
+                if ($requireApproval -and $requireApproval.RequireApproval -eq 1) {
+                    $approvalFile = Join-Path $Script:ConfigPath "operation-approval.txt"
+                    if (-not (Test-Path $approvalFile)) {
+                        $compliance.Status = "Pending"
+                        $compliance.Allowed = $false
+                        $compliance.Restrictions += "Operation requires administrative approval"
+                    }
+                }
+            }
+        }
+        
+        # Check user-level policies
+        if ($PolicyScope -eq "User" -or $PolicyScope -eq "Both") {
+            $userPolicyPath = "HKCU:\SOFTWARE\Policies\ReSetToolkit"
+            
+            if (Test-Path $userPolicyPath) {
+                if ($compliance.PolicySource -eq "None") {
+                    $compliance.PolicySource = "User Policy"
+                } else {
+                    $compliance.PolicySource = "Computer and User Policy"
+                }
+                
+                # User policies typically have lower precedence than computer policies
+                # but can add additional restrictions
+                $userRestrictions = Get-ItemProperty -Path $userPolicyPath -Name "UserRestrictions" -ErrorAction SilentlyContinue
+                if ($userRestrictions -and $userRestrictions.UserRestrictions) {
+                    $restrictionList = $userRestrictions.UserRestrictions -split ","
+                    if ($restrictionList -contains $OperationType) {
+                        $compliance.Restrictions += "User policy restricts '$OperationType' operations"
+                    }
+                }
+            }
+        }
+        
+        Write-ReSetLog "Group Policy compliance check for '$OperationType': $($compliance.Status)" "INFO"
+        return $compliance
+        
+    } catch {
+        Write-ReSetLog "Error checking Group Policy compliance: $($_.Exception.Message)" "ERROR"
+        return @{
+            Status = "Error"
+            Allowed = $false
+            Restrictions = @("Failed to check Group Policy compliance")
+            PolicySource = "Error"
+        }
+    }
+}
+
+function Get-GroupPolicyConfiguration {
+    <#
+    .SYNOPSIS
+        Retrieves Group Policy configuration for ReSet Toolkit
+    .DESCRIPTION
+        Gets all Group Policy settings that affect ReSet Toolkit operations
+    #>
+    [CmdletBinding()]
+    param()
+    
+    try {
+        $config = @{
+            ComputerPolicy = @{}
+            UserPolicy = @{}
+            EffectiveSettings = @{}
+        }
+        
+        # Get computer policy settings
+        $computerPolicyPath = "HKLM:\SOFTWARE\Policies\ReSetToolkit"
+        if (Test-Path $computerPolicyPath) {
+            $computerPolicy = Get-ItemProperty -Path $computerPolicyPath -ErrorAction SilentlyContinue
+            $config.ComputerPolicy = @{
+                Enabled = $computerPolicy.Enabled -eq 1
+                DisabledOperations = $computerPolicy.DisabledOperations
+                MaintenanceWindow = $computerPolicy.MaintenanceWindow
+                RequireApproval = $computerPolicy.RequireApproval -eq 1
+                LogLevel = $computerPolicy.LogLevel
+                BackupRequired = $computerPolicy.BackupRequired -eq 1
+                MaxBackupDays = $computerPolicy.MaxBackupDays
+                AllowRemoteExecution = $computerPolicy.AllowRemoteExecution -eq 1
+                AuditMode = $computerPolicy.AuditMode -eq 1
+            }
+        }
+        
+        # Get user policy settings
+        $userPolicyPath = "HKCU:\SOFTWARE\Policies\ReSetToolkit"
+        if (Test-Path $userPolicyPath) {
+            $userPolicy = Get-ItemProperty -Path $userPolicyPath -ErrorAction SilentlyContinue
+            $config.UserPolicy = @{
+                UserRestrictions = $userPolicy.UserRestrictions
+                AllowUserOverride = $userPolicy.AllowUserOverride -eq 1
+                NotificationLevel = $userPolicy.NotificationLevel
+            }
+        }
+        
+        # Calculate effective settings (computer policy takes precedence)
+        $config.EffectiveSettings = @{
+            OperationsEnabled = $config.ComputerPolicy.Enabled -ne $false
+            RequireBackup = $config.ComputerPolicy.BackupRequired -eq $true
+            LogLevel = if ($config.ComputerPolicy.LogLevel) { $config.ComputerPolicy.LogLevel } else { "INFO" }
+            AuditMode = $config.ComputerPolicy.AuditMode -eq $true
+            MaintenanceWindowActive = -not [string]::IsNullOrEmpty($config.ComputerPolicy.MaintenanceWindow)
+        }
+        
+        return $config
+        
+    } catch {
+        Write-ReSetLog "Error retrieving Group Policy configuration: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Invoke-GroupPolicyRefresh {
+    <#
+    .SYNOPSIS
+        Forces a Group Policy refresh to get latest policy settings
+    .DESCRIPTION
+        Refreshes Group Policy settings and updates ReSet Toolkit configuration
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [ValidateSet("Computer", "User", "Both")]
+        [string]$Target = "Both",
+        
+        [Parameter()]
+        [switch]$Force
+    )
+    
+    try {
+        Write-ReSetLog "Refreshing Group Policy settings..." "INFO"
+        
+        $arguments = @("/force")
+        if ($Target -eq "Computer") {
+            $arguments += "/target:computer"
+        } elseif ($Target -eq "User") {
+            $arguments += "/target:user"
+        }
+        
+        $process = Start-Process -FilePath "gpupdate" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+        
+        if ($process.ExitCode -eq 0) {
+            Write-ReSetLog "Group Policy refresh completed successfully" "SUCCESS"
+            
+            # Update toolkit configuration with new policy settings
+            $newConfig = Get-GroupPolicyConfiguration
+            Update-ToolkitConfiguration -PolicyConfiguration $newConfig
+            
+            return $true
+        } else {
+            Write-ReSetLog "Group Policy refresh failed with exit code: $($process.ExitCode)" "ERROR"
+            return $false
+        }
+        
+    } catch {
+        Write-ReSetLog "Error refreshing Group Policy: $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
+function Update-ToolkitConfiguration {
+    <#
+    .SYNOPSIS
+        Updates toolkit configuration based on Group Policy settings
+    .DESCRIPTION
+        Applies Group Policy settings to the toolkit's internal configuration
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [hashtable]$PolicyConfiguration
+    )
+    
+    try {
+        if (-not $PolicyConfiguration) {
+            $PolicyConfiguration = Get-GroupPolicyConfiguration
+        }
+        
+        $effective = $PolicyConfiguration.EffectiveSettings
+        
+        # Update logging configuration
+        if ($effective.LogLevel) {
+            $Script:Config.LogLevel = $effective.LogLevel
+        }
+        
+        # Update backup requirements
+        if ($effective.RequireBackup) {
+            $Script:Config.ForceBackup = $true
+        }
+        
+        # Update audit mode
+        if ($effective.AuditMode) {
+            $Script:Config.AuditMode = $true
+            Write-ReSetLog "Audit mode enabled by Group Policy" "INFO"
+        }
+        
+        # Update max backup days from policy
+        if ($PolicyConfiguration.ComputerPolicy.MaxBackupDays) {
+            $Script:Config.MaxBackupDays = $PolicyConfiguration.ComputerPolicy.MaxBackupDays
+        }
+        
+        # Enable remote execution if allowed
+        if ($PolicyConfiguration.ComputerPolicy.AllowRemoteExecution) {
+            $Script:Config.RemoteExecution = $true
+        }
+        
+        Write-ReSetLog "Toolkit configuration updated from Group Policy" "SUCCESS"
+        
+    } catch {
+        Write-ReSetLog "Error updating toolkit configuration: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+function Write-GroupPolicyAuditLog {
+    <#
+    .SYNOPSIS
+        Writes audit logs for Group Policy compliance tracking
+    .DESCRIPTION
+        Creates detailed audit logs for compliance and security monitoring
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OperationType,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$OperationName,
+        
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Started", "Completed", "Failed", "Blocked")]
+        [string]$Status,
+        
+        [Parameter()]
+        [string]$Details,
+        
+        [Parameter()]
+        [hashtable]$Compliance
+    )
+    
+    try {
+        $auditEntry = @{
+            Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            Computer = $env:COMPUTERNAME
+            User = $env:USERNAME
+            Domain = $env:USERDOMAIN
+            OperationType = $OperationType
+            OperationName = $OperationName
+            Status = $Status
+            Compliance = $Compliance
+            Details = $Details
+            ProcessId = $PID
+            SessionId = (Get-Process -Id $PID).SessionId
+        }
+        
+        # Write to Windows Event Log for SIEM integration
+        $eventId = switch ($Status) {
+            "Started" { 1001 }
+            "Completed" { 1002 }
+            "Failed" { 1003 }
+            "Blocked" { 1004 }
+            default { 1000 }
+        }
+        
+        $eventMessage = "ReSet Toolkit Operation: $OperationType - $OperationName | Status: $Status | User: $($auditEntry.User) | Computer: $($auditEntry.Computer)"
+        if ($Details) {
+            $eventMessage += " | Details: $Details"
+        }
+        
+        # Write to Application Event Log
+        try {
+            Write-EventLog -LogName "Application" -Source "ReSetToolkit" -EventId $eventId -EntryType Information -Message $eventMessage
+        } catch {
+            # Event source might not exist, try to create it
+            try {
+                New-EventLog -LogName "Application" -Source "ReSetToolkit"
+                Write-EventLog -LogName "Application" -Source "ReSetToolkit" -EventId $eventId -EntryType Information -Message $eventMessage
+            } catch {
+                # Fall back to file logging only
+                Write-ReSetLog "Could not write to Event Log, using file logging only" "WARN"
+            }
+        }
+        
+        # Write to dedicated audit log file
+        $auditLogPath = Join-Path $Script:LogPath "audit-$(Get-Date -Format 'yyyy-MM').log"
+        $auditJson = $auditEntry | ConvertTo-Json -Compress
+        Add-Content -Path $auditLogPath -Value $auditJson -Encoding UTF8
+        
+        Write-ReSetLog "Audit log entry created for $OperationType operation" "INFO"
+        
+    } catch {
+        Write-ReSetLog "Error writing audit log: $($_.Exception.Message)" "ERROR"
+    }
+}
+
+function Test-MaintenanceWindow {
+    <#
+    .SYNOPSIS
+        Tests if current time is within the allowed maintenance window
+    .DESCRIPTION
+        Checks Group Policy defined maintenance windows for operation execution
+    #>
+    [CmdletBinding()]
+    param()
+    
+    try {
+        $policyConfig = Get-GroupPolicyConfiguration
+        
+        if (-not $policyConfig.EffectiveSettings.MaintenanceWindowActive) {
+            return @{
+                InWindow = $true
+                Message = "No maintenance window restrictions"
+            }
+        }
+        
+        $maintenanceWindow = $policyConfig.ComputerPolicy.MaintenanceWindow
+        if ([string]::IsNullOrEmpty($maintenanceWindow)) {
+            return @{
+                InWindow = $true
+                Message = "No maintenance window defined"
+            }
+        }
+        
+        # Parse maintenance window (format: "HH:mm-HH:mm" or "HH-HH")
+        $windowParts = $maintenanceWindow -split "-"
+        if ($windowParts.Count -ne 2) {
+            Write-ReSetLog "Invalid maintenance window format: $maintenanceWindow" "WARN"
+            return @{
+                InWindow = $true
+                Message = "Invalid maintenance window format, allowing operation"
+            }
+        }
+        
+        $currentTime = Get-Date
+        $startTime = [DateTime]::ParseExact($windowParts[0], "HH", $null)
+        $endTime = [DateTime]::ParseExact($windowParts[1], "HH", $null)
+        
+        # Handle overnight windows (e.g., 22-06)
+        if ($endTime -lt $startTime) {
+            $inWindow = ($currentTime.Hour -ge $startTime.Hour) -or ($currentTime.Hour -le $endTime.Hour)
+        } else {
+            $inWindow = ($currentTime.Hour -ge $startTime.Hour) -and ($currentTime.Hour -le $endTime.Hour)
+        }
+        
+        return @{
+            InWindow = $inWindow
+            Message = if ($inWindow) { 
+                "Current time is within maintenance window ($maintenanceWindow)" 
+            } else { 
+                "Current time is outside maintenance window ($maintenanceWindow)" 
+            }
+            Window = $maintenanceWindow
+            CurrentHour = $currentTime.Hour
+        }
+        
+    } catch {
+        Write-ReSetLog "Error checking maintenance window: $($_.Exception.Message)" "ERROR"
+        return @{
+            InWindow = $true
+            Message = "Error checking maintenance window, allowing operation"
+        }
+    }
+}
+
+function Assert-GroupPolicyCompliance {
+    <#
+    .SYNOPSIS
+        Asserts that an operation is compliant with Group Policy before execution
+    .DESCRIPTION
+        Comprehensive compliance check that throws if operation should not proceed
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OperationType,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$OperationName,
+        
+        [Parameter()]
+        [switch]$IgnoreMaintenanceWindow
+    )
+    
+    try {
+        # Check basic compliance
+        $compliance = Test-GroupPolicyCompliance -OperationType $OperationType
+        
+        if (-not $compliance.Allowed) {
+            $message = "Operation blocked by Group Policy: $($compliance.Restrictions -join '; ')"
+            Write-GroupPolicyAuditLog -OperationType $OperationType -OperationName $OperationName -Status "Blocked" -Details $message -Compliance $compliance
+            throw $message
+        }
+        
+        # Check maintenance window unless ignored
+        if (-not $IgnoreMaintenanceWindow) {
+            $windowCheck = Test-MaintenanceWindow
+            if (-not $windowCheck.InWindow) {
+                $message = "Operation blocked: $($windowCheck.Message)"
+                Write-GroupPolicyAuditLog -OperationType $OperationType -OperationName $OperationName -Status "Blocked" -Details $message
+                throw $message
+            }
+        }
+        
+        Write-ReSetLog "Group Policy compliance check passed for '$OperationName'" "SUCCESS"
+        Write-GroupPolicyAuditLog -OperationType $OperationType -OperationName $OperationName -Status "Started" -Compliance $compliance
+        
+    } catch {
+        Write-ReSetLog "Group Policy compliance check failed: $($_.Exception.Message)" "ERROR"
+        throw
+    }
+}
+
+# ===================================================================
+# ENHANCED SILENT MODE FUNCTIONS
+# ===================================================================
+
+function Invoke-SilentResetOperation {
+    <#
+    .SYNOPSIS
+        Executes reset operations in silent mode for GPO deployment
+    .DESCRIPTION
+        Provides comprehensive silent execution with logging and error handling
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptName,
+        
+        [Parameter()]
+        [hashtable]$Parameters = @{},
+        
+        [Parameter()]
+        [string]$ConfigurationFile,
+        
+        [Parameter()]
+        [switch]$Force,
+        
+        [Parameter()]
+        [int]$TimeoutMinutes = 30
+    )
+    
+    try {
+        # Load configuration if provided
+        if ($ConfigurationFile -and (Test-Path $ConfigurationFile)) {
+            $config = Get-Content $ConfigurationFile | ConvertFrom-Json
+            foreach ($key in $config.PSObject.Properties.Name) {
+                if (-not $Parameters.ContainsKey($key)) {
+                    $Parameters[$key] = $config.$key
+                }
+            }
+        }
+        
+        # Check Group Policy compliance
+        Assert-GroupPolicyCompliance -OperationType "Reset" -OperationName $ScriptName
+        
+        # Prepare script execution parameters
+        $scriptPath = Join-Path $PSScriptRoot "$ScriptName.ps1"
+        if (-not (Test-Path $scriptPath)) {
+            throw "Script not found: $scriptPath"
+        }
+        
+        # Build parameter list
+        $paramList = @("-Silent")
+        if ($Force) { $paramList += "-Force" }
+        
+        foreach ($param in $Parameters.GetEnumerator()) {
+            if ($param.Value -is [bool] -and $param.Value) {
+                $paramList += "-$($param.Key)"
+            } elseif ($param.Value -isnot [bool]) {
+                $paramList += "-$($param.Key)", $param.Value
+            }
+        }
+        
+        Write-ReSetLog "Executing silent operation: $ScriptName with parameters: $($paramList -join ' ')" "INFO"
+        
+        # Execute with timeout
+        $job = Start-Job -ScriptBlock {
+            param($ScriptPath, $ParamList)
+            & $ScriptPath @ParamList
+        } -ArgumentList $scriptPath, $paramList
+        
+        $completed = Wait-Job -Job $job -Timeout ($TimeoutMinutes * 60)
+        
+        if ($completed) {
+            $result = Receive-Job -Job $job
+            $exitCode = $job.State -eq "Completed" ? 0 : 1
+            
+            Write-ReSetLog "Silent operation completed: $ScriptName (Exit Code: $exitCode)" "SUCCESS"
+            Write-GroupPolicyAuditLog -OperationType "Reset" -OperationName $ScriptName -Status "Completed" -Details "Exit Code: $exitCode"
+            
+            return @{
+                Success = $job.State -eq "Completed"
+                ExitCode = $exitCode
+                Output = $result
+                ExecutionTime = (Get-Date) - $job.PSBeginTime
+            }
+        } else {
+            Stop-Job -Job $job
+            Write-ReSetLog "Silent operation timed out: $ScriptName (Timeout: $TimeoutMinutes minutes)" "ERROR"
+            Write-GroupPolicyAuditLog -OperationType "Reset" -OperationName $ScriptName -Status "Failed" -Details "Operation timed out"
+            
+            return @{
+                Success = $false
+                ExitCode = -1
+                Output = "Operation timed out"
+                ExecutionTime = [TimeSpan]::FromMinutes($TimeoutMinutes)
+            }
+        }
+        
+    } catch {
+        Write-ReSetLog "Error in silent operation: $($_.Exception.Message)" "ERROR"
+        Write-GroupPolicyAuditLog -OperationType "Reset" -OperationName $ScriptName -Status "Failed" -Details $_.Exception.Message
+        
+        return @{
+            Success = $false
+            ExitCode = -1
+            Output = $_.Exception.Message
+            ExecutionTime = [TimeSpan]::Zero
+        }
+    } finally {
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ===================================================================
+# EXPORT MODULE MEMBERS (UPDATED WITH GPO FUNCTIONS)
 # ===================================================================
 
 Export-ModuleMember -Function @(
@@ -1525,5 +2114,13 @@ Export-ModuleMember -Function @(
     'Test-ActiveDirectoryConnectivity',
     'Reset-ActiveDirectoryCache',
     'New-CompressedBackup',
-    'Invoke-SystemReport'
+    'Invoke-SystemReport',
+    'Test-GroupPolicyCompliance',
+    'Get-GroupPolicyConfiguration',
+    'Invoke-GroupPolicyRefresh',
+    'Update-ToolkitConfiguration',
+    'Write-GroupPolicyAuditLog',
+    'Test-MaintenanceWindow',
+    'Assert-GroupPolicyCompliance',
+    'Invoke-SilentResetOperation'
 )

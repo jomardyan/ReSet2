@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0" xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <policyNamespaces>
+    <target prefix="resettoolkit" namespace="Microsoft.Policies.ReSetToolkit" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  
+  <supersededAdm fileName="" />
+  
+  <resources minRequiredRevision="1.0" />
+  
+  <categories>
+    <category name="ReSetToolkit" displayName="$(string.ReSetToolkit)">
+      <parentCategory ref="windows:System" />
+    </category>
+    <category name="ReSetToolkitOperations" displayName="$(string.ReSetToolkitOperations)">
+      <parentCategory ref="ReSetToolkit" />
+    </category>
+    <category name="ReSetToolkitSecurity" displayName="$(string.ReSetToolkitSecurity)">
+      <parentCategory ref="ReSetToolkit" />
+    </category>
+    <category name="ReSetToolkitLogging" displayName="$(string.ReSetToolkitLogging)">
+      <parentCategory ref="ReSetToolkit" />
+    </category>
+    <category name="ReSetToolkitMaintenance" displayName="$(string.ReSetToolkitMaintenance)">
+      <parentCategory ref="ReSetToolkit" />
+    </category>
+  </categories>
+  
+  <policies>
+    <!-- Enable/Disable ReSet Toolkit -->
+    <policy name="EnableReSetToolkit" class="Machine" displayName="$(string.EnableReSetToolkit)" explainText="$(string.EnableReSetToolkit_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="Enabled">
+      <parentCategory ref="ReSetToolkit" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Require Administrative Approval -->
+    <policy name="RequireApproval" class="Machine" displayName="$(string.RequireApproval)" explainText="$(string.RequireApproval_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="RequireApproval">
+      <parentCategory ref="ReSetToolkitSecurity" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Maintenance Window Configuration -->
+    <policy name="MaintenanceWindow" class="Machine" displayName="$(string.MaintenanceWindow)" explainText="$(string.MaintenanceWindow_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkitMaintenance" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <text id="MaintenanceWindowValue" valueName="MaintenanceWindow" maxLength="5" />
+      </elements>
+    </policy>
+    
+    <!-- Disabled Operations -->
+    <policy name="DisabledOperations" class="Machine" displayName="$(string.DisabledOperations)" explainText="$(string.DisabledOperations_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkitOperations" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <multiText id="DisabledOperationsList" valueName="DisabledOperations" maxLength="1000" />
+      </elements>
+    </policy>
+    
+    <!-- Backup Requirements -->
+    <policy name="BackupRequired" class="Machine" displayName="$(string.BackupRequired)" explainText="$(string.BackupRequired_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="BackupRequired">
+      <parentCategory ref="ReSetToolkitSecurity" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Maximum Backup Retention Days -->
+    <policy name="MaxBackupDays" class="Machine" displayName="$(string.MaxBackupDays)" explainText="$(string.MaxBackupDays_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkitMaintenance" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <decimal id="MaxBackupDaysValue" valueName="MaxBackupDays" minValue="1" maxValue="365" />
+      </elements>
+    </policy>
+    
+    <!-- Logging Level Configuration -->
+    <policy name="LogLevel" class="Machine" displayName="$(string.LogLevel)" explainText="$(string.LogLevel_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkitLogging" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <enum id="LogLevelValue" valueName="LogLevel">
+          <item displayName="$(string.LogLevel_Error)">
+            <value>
+              <string>ERROR</string>
+            </value>
+          </item>
+          <item displayName="$(string.LogLevel_Warning)">
+            <value>
+              <string>WARN</string>
+            </value>
+          </item>
+          <item displayName="$(string.LogLevel_Info)">
+            <value>
+              <string>INFO</string>
+            </value>
+          </item>
+          <item displayName="$(string.LogLevel_Debug)">
+            <value>
+              <string>DEBUG</string>
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+    
+    <!-- Audit Mode -->
+    <policy name="AuditMode" class="Machine" displayName="$(string.AuditMode)" explainText="$(string.AuditMode_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="AuditMode">
+      <parentCategory ref="ReSetToolkitLogging" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Allow Remote Execution -->
+    <policy name="AllowRemoteExecution" class="Machine" displayName="$(string.AllowRemoteExecution)" explainText="$(string.AllowRemoteExecution_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="AllowRemoteExecution">
+      <parentCategory ref="ReSetToolkitSecurity" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Silent Mode Configuration -->
+    <policy name="EnableSilentMode" class="Machine" displayName="$(string.EnableSilentMode)" explainText="$(string.EnableSilentMode_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="EnableSilentMode">
+      <parentCategory ref="ReSetToolkitOperations" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Notification Level (User Policy) -->
+    <policy name="NotificationLevel" class="User" displayName="$(string.NotificationLevel)" explainText="$(string.NotificationLevel_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkit" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <enum id="NotificationLevelValue" valueName="NotificationLevel">
+          <item displayName="$(string.NotificationLevel_None)">
+            <value>
+              <string>None</string>
+            </value>
+          </item>
+          <item displayName="$(string.NotificationLevel_Minimal)">
+            <value>
+              <string>Minimal</string>
+            </value>
+          </item>
+          <item displayName="$(string.NotificationLevel_Normal)">
+            <value>
+              <string>Normal</string>
+            </value>
+          </item>
+          <item displayName="$(string.NotificationLevel_Verbose)">
+            <value>
+              <string>Verbose</string>
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+    
+    <!-- User Override Permission -->
+    <policy name="AllowUserOverride" class="User" displayName="$(string.AllowUserOverride)" explainText="$(string.AllowUserOverride_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="AllowUserOverride">
+      <parentCategory ref="ReSetToolkitSecurity" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Automatic Backup Before Operations -->
+    <policy name="AutoBackup" class="Machine" displayName="$(string.AutoBackup)" explainText="$(string.AutoBackup_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="AutoBackup">
+      <parentCategory ref="ReSetToolkitSecurity" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Event Log Integration -->
+    <policy name="EnableEventLogging" class="Machine" displayName="$(string.EnableEventLogging)" explainText="$(string.EnableEventLogging_Help)" key="SOFTWARE\Policies\ReSetToolkit" valueName="EnableEventLogging">
+      <parentCategory ref="ReSetToolkitLogging" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    
+    <!-- Centralized Configuration Server -->
+    <policy name="ConfigurationServer" class="Machine" displayName="$(string.ConfigurationServer)" explainText="$(string.ConfigurationServer_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkit" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <text id="ConfigurationServerURL" valueName="ConfigurationServer" maxLength="255" />
+      </elements>
+    </policy>
+    
+    <!-- Execution Timeout -->
+    <policy name="ExecutionTimeout" class="Machine" displayName="$(string.ExecutionTimeout)" explainText="$(string.ExecutionTimeout_Help)" key="SOFTWARE\Policies\ReSetToolkit">
+      <parentCategory ref="ReSetToolkitOperations" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <decimal id="ExecutionTimeoutValue" valueName="ExecutionTimeout" minValue="1" maxValue="120" />
+      </elements>
+    </policy>
+  </policies>
+</policyDefinitions>

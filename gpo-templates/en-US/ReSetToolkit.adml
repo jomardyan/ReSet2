@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0" xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <displayName>ReSet Toolkit Group Policy Settings</displayName>
+  <description>Administrative templates for Windows Reset Toolkit enterprise deployment and management</description>
+  
+  <resources>
+    <stringTable>
+      <!-- Category Names -->
+      <string id="ReSetToolkit">Windows Reset Toolkit</string>
+      <string id="ReSetToolkitOperations">Operations</string>
+      <string id="ReSetToolkitSecurity">Security</string>
+      <string id="ReSetToolkitLogging">Logging &amp; Auditing</string>
+      <string id="ReSetToolkitMaintenance">Maintenance</string>
+      
+      <!-- Policy Names and Descriptions -->
+      <string id="EnableReSetToolkit">Enable ReSet Toolkit</string>
+      <string id="EnableReSetToolkit_Help">This policy setting determines whether the Windows Reset Toolkit is enabled on this computer.
+
+If you enable this policy setting, users and administrators can execute ReSet Toolkit operations according to other policy restrictions.
+
+If you disable this policy setting, all ReSet Toolkit operations are blocked regardless of other settings.
+
+If you do not configure this policy setting, the ReSet Toolkit will use its default configuration (enabled).</string>
+      
+      <string id="RequireApproval">Require Administrative Approval</string>
+      <string id="RequireApproval_Help">This policy setting determines whether ReSet Toolkit operations require explicit administrative approval before execution.
+
+If you enable this policy setting, operations will only execute if an approval file exists in the toolkit configuration directory.
+
+If you disable this policy setting, operations can execute without prior approval (subject to other restrictions).
+
+If you do not configure this policy setting, approval is not required by default.</string>
+      
+      <string id="MaintenanceWindow">Maintenance Window</string>
+      <string id="MaintenanceWindow_Help">This policy setting defines the allowed maintenance window for ReSet Toolkit operations.
+
+Enter the maintenance window in 24-hour format as StartHour-EndHour (e.g., "22-06" for 10 PM to 6 AM).
+
+Operations attempted outside this window will be blocked unless specifically overridden.
+
+If you do not configure this policy setting, operations are allowed at any time.
+
+Examples:
+- "09-17" allows operations from 9 AM to 5 PM
+- "22-06" allows operations from 10 PM to 6 AM (overnight window)
+- "00-23" allows operations 24/7</string>
+      
+      <string id="DisabledOperations">Disabled Operations</string>
+      <string id="DisabledOperations_Help">This policy setting specifies which ReSet Toolkit operations are disabled.
+
+Enter operation types to disable, one per line:
+- Reset (all reset operations)
+- Backup (backup creation)
+- Restore (backup restoration)
+- Cleanup (system cleanup)
+- All (disable all operations)
+
+You can also specify individual script names (e.g., "reset-network", "reset-display").
+
+If you do not configure this policy setting, all operations are allowed (subject to other restrictions).</string>
+      
+      <string id="BackupRequired">Require Backup Before Operations</string>
+      <string id="BackupRequired_Help">This policy setting determines whether backup creation is mandatory before reset operations.
+
+If you enable this policy setting, all reset operations must create a backup before proceeding.
+
+If you disable this policy setting, backup creation is optional and depends on operation parameters.
+
+If you do not configure this policy setting, the toolkit uses its default backup behavior.</string>
+      
+      <string id="MaxBackupDays">Maximum Backup Retention Days</string>
+      <string id="MaxBackupDays_Help">This policy setting specifies how long backup files are retained before automatic cleanup.
+
+Enter a value between 1 and 365 days. Backups older than this period will be automatically removed during maintenance operations.
+
+Recommended values:
+- 30 days for development environments
+- 90 days for production environments
+- 180 days for compliance requirements
+
+If you do not configure this policy setting, the default retention is 90 days.</string>
+      
+      <string id="LogLevel">Logging Level</string>
+      <string id="LogLevel_Help">This policy setting controls the verbosity of ReSet Toolkit logging.
+
+ERROR: Log only errors and critical issues
+WARNING: Log errors and warnings
+INFO: Log general operational information (recommended)
+DEBUG: Log detailed debugging information (for troubleshooting)
+
+Higher logging levels include all lower level messages.
+
+If you do not configure this policy setting, the default level is INFO.</string>
+      
+      <string id="LogLevel_Error">Error</string>
+      <string id="LogLevel_Warning">Warning</string>
+      <string id="LogLevel_Info">Information</string>
+      <string id="LogLevel_Debug">Debug</string>
+      
+      <string id="AuditMode">Enable Audit Mode</string>
+      <string id="AuditMode_Help">This policy setting enables comprehensive audit logging for compliance and security monitoring.
+
+If you enable this policy setting, all operations are logged to the Windows Event Log with detailed audit information including user context, operation details, and compliance status.
+
+If you disable this policy setting, only basic operational logging is performed.
+
+If you do not configure this policy setting, audit mode is disabled by default.
+
+Note: Audit mode generates additional Event Log entries and should be enabled in environments requiring compliance tracking.</string>
+      
+      <string id="AllowRemoteExecution">Allow Remote Execution</string>
+      <string id="AllowRemoteExecution_Help">This policy setting determines whether ReSet Toolkit operations can be executed remotely.
+
+If you enable this policy setting, authorized administrators can execute toolkit operations on this computer from remote management systems.
+
+If you disable this policy setting, only local execution is permitted.
+
+If you do not configure this policy setting, remote execution is disabled by default for security.
+
+Warning: Enabling remote execution may introduce security risks. Ensure proper authentication and authorization controls are in place.</string>
+      
+      <string id="EnableSilentMode">Enable Silent Mode</string>
+      <string id="EnableSilentMode_Help">This policy setting enables silent (unattended) execution mode for automated deployments.
+
+If you enable this policy setting, operations can run without user interaction, making them suitable for deployment via Group Policy, scheduled tasks, or automation systems.
+
+If you disable this policy setting, operations may require user confirmation and cannot be fully automated.
+
+If you do not configure this policy setting, silent mode capabilities depend on how operations are invoked.</string>
+      
+      <string id="NotificationLevel">User Notification Level</string>
+      <string id="NotificationLevel_Help">This policy setting controls how much information is displayed to users during operations.
+
+None: No user notifications (silent)
+Minimal: Only critical errors and completion status
+Normal: Standard operation progress and results
+Verbose: Detailed step-by-step information
+
+If you do not configure this policy setting, the default level is Normal.</string>
+      
+      <string id="NotificationLevel_None">None</string>
+      <string id="NotificationLevel_Minimal">Minimal</string>
+      <string id="NotificationLevel_Normal">Normal</string>
+      <string id="NotificationLevel_Verbose">Verbose</string>
+      
+      <string id="AllowUserOverride">Allow User Override</string>
+      <string id="AllowUserOverride_Help">This policy setting determines whether users can override certain policy restrictions.
+
+If you enable this policy setting, users may be able to bypass some restrictions using command-line parameters or configuration options.
+
+If you disable this policy setting, policy restrictions are strictly enforced and cannot be overridden.
+
+If you do not configure this policy setting, user override is not permitted by default.
+
+Warning: Allowing user override may reduce the effectiveness of enterprise policies.</string>
+      
+      <string id="AutoBackup">Automatic Backup Before Operations</string>
+      <string id="AutoBackup_Help">This policy setting enables automatic backup creation before any potentially destructive operation.
+
+If you enable this policy setting, backups are automatically created before reset operations without user intervention.
+
+If you disable this policy setting, backup creation depends on operation parameters and user choices.
+
+If you do not configure this policy setting, automatic backup behavior follows toolkit defaults.</string>
+      
+      <string id="EnableEventLogging">Enable Windows Event Log Integration</string>
+      <string id="EnableEventLogging_Help">This policy setting enables integration with Windows Event Log for centralized monitoring.
+
+If you enable this policy setting, toolkit operations are logged to the Windows Application Event Log, making them visible to SIEM systems and monitoring tools.
+
+If you disable this policy setting, only file-based logging is used.
+
+If you do not configure this policy setting, Event Log integration depends on audit mode settings.
+
+Event Log integration supports:
+- Operation start/completion events
+- Error and warning events
+- Security audit events
+- Performance metrics</string>
+      
+      <string id="ConfigurationServer">Centralized Configuration Server</string>
+      <string id="ConfigurationServer_Help">This policy setting specifies a centralized configuration server for enterprise-wide settings.
+
+Enter the URL of the configuration server (e.g., "https://config.company.com/reset-toolkit").
+
+The toolkit will periodically check this server for updated configuration and policy settings.
+
+If you do not configure this policy setting, only local and Group Policy configuration is used.
+
+Supported protocols:
+- HTTPS (recommended for security)
+- HTTP (for internal networks only)
+- File shares (\\server\share\path)</string>
+      
+      <string id="ExecutionTimeout">Operation Execution Timeout</string>
+      <string id="ExecutionTimeout_Help">This policy setting specifies the maximum time (in minutes) that operations are allowed to run before being terminated.
+
+Enter a value between 1 and 120 minutes. Operations that exceed this timeout will be forcefully stopped and marked as failed.
+
+Recommended values:
+- 10 minutes for basic operations
+- 30 minutes for comprehensive resets
+- 60 minutes for complex enterprise operations
+
+If you do not configure this policy setting, the default timeout is 30 minutes.</string>
+      
+    </stringTable>
+    
+    <presentationTable>
+      <presentation id="MaintenanceWindow">
+        <textBox refId="MaintenanceWindowValue">
+          <label>Maintenance Window (HH-HH format):</label>
+          <defaultValue>22-06</defaultValue>
+        </textBox>
+      </presentation>
+      
+      <presentation id="DisabledOperations">
+        <multiTextBox refId="DisabledOperationsList">
+          <label>Disabled Operations (one per line):</label>
+        </multiTextBox>
+      </presentation>
+      
+      <presentation id="MaxBackupDays">
+        <decimalTextBox refId="MaxBackupDaysValue" defaultValue="90">
+          <label>Maximum backup retention (days):</label>
+        </decimalTextBox>
+      </presentation>
+      
+      <presentation id="LogLevel">
+        <dropdownList refId="LogLevelValue" defaultItem="2">
+          <label>Logging Level:</label>
+        </dropdownList>
+      </presentation>
+      
+      <presentation id="NotificationLevel">
+        <dropdownList refId="NotificationLevelValue" defaultItem="2">
+          <label>User Notification Level:</label>
+        </dropdownList>
+      </presentation>
+      
+      <presentation id="ConfigurationServer">
+        <textBox refId="ConfigurationServerURL">
+          <label>Configuration Server URL:</label>
+          <defaultValue>https://</defaultValue>
+        </textBox>
+      </presentation>
+      
+      <presentation id="ExecutionTimeout">
+        <decimalTextBox refId="ExecutionTimeoutValue" defaultValue="30">
+          <label>Execution timeout (minutes):</label>
+        </decimalTextBox>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>
